@@ -1,0 +1,207 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <input class="back-button" type="button" value="<" onclick="back" />
+      <text class="title">{{ title }}</text>
+    </div>
+
+    <div class="messages">
+      <div class="{{ item.rowClass }}" for="item in displayMessages">
+        <text class="{{ item.bubbleClass }}">{{ item.content }}</text>
+      </div>
+      <div class="message-row message-assistant" if="{{ loading }}">
+        <text class="bubble bubble-assistant">Thinking...</text>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <input
+        class="message-input"
+        type="text"
+        placeholder="Ask AI"
+        value="{{ draft }}"
+        onchange="updateDraft"
+      />
+      <input class="send-button" type="button" value="Send" onclick="send" />
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import {MAX_INPUT_LENGTH} from "../../utils/constants"
+import {askDeepSeek, getChat, getCurrentChatId} from "../../services/chat"
+
+export default {
+  private: {
+    chatId: "",
+    title: "Chat",
+    messages: [],
+    displayMessages: [],
+    draft: "",
+    loading: false
+  },
+
+  async onInit() {
+    await this.loadChat()
+  },
+
+  async onShow() {
+    await this.loadChat()
+  },
+
+  async loadChat() {
+    const chatId = await getCurrentChatId()
+    const chat = await getChat(chatId)
+
+    if (!chat) {
+      router.back()
+      return
+    }
+
+    this.chatId = chat.id
+    this.title = chat.title
+    this.messages = chat.messages || []
+    this.displayMessages = this.messages.map(message => ({
+      ...message,
+      rowClass: message.role === "user" ? "message-row message-user" : "message-row message-assistant",
+      bubbleClass: message.role === "user" ? "bubble bubble-user" : "bubble bubble-assistant"
+    }))
+  },
+
+  updateDraft(event) {
+    const value = (event && event.value) || ""
+    this.draft = value.slice(0, MAX_INPUT_LENGTH)
+  },
+
+  async send() {
+    const content = (this.draft || "").trim()
+
+    if (!content || this.loading) {
+      return
+    }
+
+    this.loading = true
+    this.draft = ""
+
+    try {
+      const chat = await askDeepSeek(this.chatId, content)
+      this.title = chat.title
+      this.messages = chat.messages || []
+    } catch (error) {
+      console.error("send message failed", error)
+      prompt.showToast({
+        message: "Network Error"
+      })
+      await this.loadChat()
+    } finally {
+      this.loading = false
+    }
+  },
+
+  back() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  padding: 20px 18px 18px;
+  flex-direction: column;
+  background-color: #101418;
+  color: #f8fafc;
+}
+
+.header {
+  height: 38px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.back-button {
+  width: 38px;
+  height: 34px;
+  border-radius: 16px;
+  background-color: #25313d;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.title {
+  flex: 1;
+  margin-left: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffffff;
+  lines: 1;
+}
+
+.messages {
+  flex: 1;
+  margin-top: 8px;
+  flex-direction: column;
+}
+
+.message-row {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.message-user {
+  align-items: flex-end;
+}
+
+.message-assistant {
+  align-items: flex-start;
+}
+
+.bubble {
+  max-width: 82%;
+  padding: 9px 12px;
+  border-radius: 15px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.bubble-user {
+  background-color: #1fbf75;
+  color: #07130d;
+}
+
+.bubble-assistant {
+  background-color: #25313d;
+  color: #f8fafc;
+}
+
+.input-area {
+  height: 48px;
+  margin-top: 6px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.message-input {
+  flex: 1;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background-color: #1f2933;
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.send-button {
+  width: 72px;
+  height: 44px;
+  margin-left: 8px;
+  border-radius: 16px;
+  background-color: #f4c542;
+  color: #1b1b12;
+  font-size: 15px;
+  font-weight: bold;
+}
+</style>

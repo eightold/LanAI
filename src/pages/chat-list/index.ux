@@ -1,0 +1,145 @@
+<template>
+  <div class="page">
+    <text class="title">LanAI</text>
+
+    <div class="empty" if="{{ chats.length === 0 }}">
+      <text class="empty-title">No Chats</text>
+      <text class="empty-subtitle">Tap New Chat</text>
+    </div>
+
+    <div class="chat-list" if="{{ chats.length > 0 }}">
+      <div
+        class="chat-card"
+        for="item in chats"
+        onclick="openChat(item.id)"
+        onlongpress="removeChat(item.id)"
+      >
+        <text class="chat-title">{{ item.title }}</text>
+        <text class="chat-preview">{{ item.preview }}</text>
+      </div>
+    </div>
+
+    <input class="new-button" type="button" value="+ New Chat" onclick="startChat" />
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import {createChat, deleteChat, listChats, setCurrentChatId} from "../../services/chat"
+
+export default {
+  private: {
+    chats: []
+  },
+
+  onInit() {
+    this.refresh()
+  },
+
+  onShow() {
+    this.refresh()
+  },
+
+  async refresh() {
+    this.chats = await listChats()
+  },
+
+  async startChat() {
+    const chat = await createChat()
+    await this.openChat(chat.id)
+  },
+
+  async openChat(id) {
+    await setCurrentChatId(id)
+    router.push({
+      uri: "/pages/chat"
+    })
+  },
+
+  async removeChat(id) {
+    await deleteChat(id)
+    prompt.showToast({
+      message: "Chat deleted"
+    })
+    await this.refresh()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  padding: 24px 22px;
+  flex-direction: column;
+  background-color: #101418;
+  color: #f8fafc;
+}
+
+.title {
+  height: 34px;
+  font-size: 22px;
+  font-weight: bold;
+  text-align: center;
+  color: #ffffff;
+}
+
+.empty {
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.empty-title {
+  font-size: 18px;
+  color: #f8fafc;
+}
+
+.empty-subtitle {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #9aa5b1;
+}
+
+.chat-list {
+  flex: 1;
+  margin-top: 8px;
+  flex-direction: column;
+}
+
+.chat-card {
+  width: 100%;
+  min-height: 58px;
+  margin-bottom: 8px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background-color: #1f2933;
+  flex-direction: column;
+}
+
+.chat-title {
+  font-size: 16px;
+  color: #ffffff;
+  lines: 1;
+}
+
+.chat-preview {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #a8b3bf;
+  lines: 1;
+}
+
+.new-button {
+  width: 100%;
+  height: 46px;
+  margin-top: 8px;
+  border-radius: 16px;
+  background-color: #1fbf75;
+  color: #07130d;
+  font-size: 17px;
+  font-weight: bold;
+}
+</style>

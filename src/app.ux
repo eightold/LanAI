@@ -1,0 +1,10 @@
+<script>
+export default {
+  onCreate() {
+    console.log("LanAI app created")
+  },
+  onDestroy() {
+    console.log("LanAI app destroyed")
+  }
+}
+</script>
