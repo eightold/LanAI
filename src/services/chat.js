@@ -5,12 +5,12 @@ import {getJson, readValue, removeValue, writeJson, writeValue} from "./storage"
 import {sendChatMessage} from "./deepseek"
 
 function getChatKey(id) {
-  return `chat_${id}`
+  return "chat_" + id
 }
 
 function toListItem(session) {
-  const messages = session.messages || []
-  const lastMessage = messages[messages.length - 1]
+  var messages = session.messages || []
+  var lastMessage = messages[messages.length - 1]
 
   return {
     id: session.id,
@@ -22,7 +22,7 @@ function toListItem(session) {
 }
 
 function createSession(title) {
-  const timestamp = now()
+  var timestamp = now()
 
   return {
     id: createId("chat"),
@@ -33,106 +33,146 @@ function createSession(title) {
   }
 }
 
-async function saveSession(session) {
-  const limited = {
-    ...session,
+function saveSession(session, done) {
+  var limited = {
+    id: session.id,
+    title: session.title,
+    createTime: session.createTime,
     messages: (session.messages || []).slice(-MAX_MESSAGES),
     updateTime: now()
   }
 
-  await writeJson(getChatKey(limited.id), limited)
+  writeJson(getChatKey(limited.id), limited, function() {
+    listChats(function(list) {
+      var nextList = list.filter(function(item) {
+        return item.id !== limited.id
+      })
 
-  const list = await listChats()
-  const nextList = list.filter(item => item.id !== limited.id)
-  nextList.unshift(toListItem(limited))
-  await writeJson(STORAGE_KEYS.CHAT_LIST, nextList)
-
-  return limited
-}
-
-export async function listChats() {
-  return getJson(STORAGE_KEYS.CHAT_LIST, [])
-}
-
-export async function createChat() {
-  const session = createSession()
-  return saveSession(session)
-}
-
-export async function deleteChat(id) {
-  const list = await listChats()
-  await writeJson(
-    STORAGE_KEYS.CHAT_LIST,
-    list.filter(item => item.id !== id)
-  )
-  await removeValue(getChatKey(id))
-
-  const current = await readValue(STORAGE_KEYS.CURRENT_CHAT_ID)
-  if (current === id) {
-    await writeValue(STORAGE_KEYS.CURRENT_CHAT_ID, "")
-  }
-}
-
-export async function getChat(id) {
-  if (!id) {
-    return null
-  }
-
-  return getJson(getChatKey(id), null)
-}
-
-export function setCurrentChatId(id) {
-  return writeValue(STORAGE_KEYS.CURRENT_CHAT_ID, id)
-}
-
-export function getCurrentChatId() {
-  return readValue(STORAGE_KEYS.CURRENT_CHAT_ID)
-}
-
-export async function appendUserMessage(id, content) {
-  const session = await getChat(id)
-  const timestamp = now()
-  const message = {
-    id: createId("msg"),
-    role: "user",
-    content,
-    timestamp
-  }
-
-  const nextSession = {
-    ...session,
-    title: session.title === "New Chat" ? content.slice(0, 16) : session.title,
-    messages: [...session.messages, message],
-    updateTime: timestamp
-  }
-
-  return saveSession(nextSession)
-}
-
-export async function appendAssistantMessage(id, content) {
-  const session = await getChat(id)
-  const timestamp = now()
-  const message = {
-    id: createId("msg"),
-    role: "assistant",
-    content,
-    timestamp
-  }
-
-  return saveSession({
-    ...session,
-    messages: [...session.messages, message],
-    updateTime: timestamp
+      nextList.unshift(toListItem(limited))
+      writeJson(STORAGE_KEYS.CHAT_LIST, nextList, function() {
+        done(limited)
+      })
+    })
   })
 }
 
-export async function askDeepSeek(id, content) {
-  const session = await appendUserMessage(id, content)
-  const history = session.messages.map(message => ({
-    role: message.role,
-    content: message.content
-  }))
+export function listChats(done) {
+  getJson(STORAGE_KEYS.CHAT_LIST, [], done)
+}
 
-  const answer = await sendChatMessage(history)
-  return appendAssistantMessage(id, answer)
+export function createChat(done) {
+  saveSession(createSession(), done)
+}
+
+export function deleteChat(id, done) {
+  listChats(function(list) {
+    writeJson(
+      STORAGE_KEYS.CHAT_LIST,
+      list.filter(function(item) {
+        return item.id !== id
+      }),
+      function() {
+        removeValue(getChatKey(id), function() {
+          readValue(STORAGE_KEYS.CURRENT_CHAT_ID, function(current) {
+            if (current === id) {
+              writeValue(STORAGE_KEYS.CURRENT_CHAT_ID, "", function() {
+                done()
+              })
+              return
+            }
+
+            done()
+          })
+        })
+      }
+    )
+  })
+}
+
+export function getChat(id, done) {
+  if (!id) {
+    done(null)
+    return
+  }
+
+  getJson(getChatKey(id), null, done)
+}
+
+export function setCurrentChatId(id, done) {
+  writeValue(STORAGE_KEYS.CURRENT_CHAT_ID, id, done)
+}
+
+export function getCurrentChatId(done) {
+  readValue(STORAGE_KEYS.CURRENT_CHAT_ID, done)
+}
+
+export function appendUserMessage(id, content, done) {
+  getChat(id, function(session) {
+    var timestamp = now()
+    var messages = (session.messages || []).slice()
+    var message = {
+      id: createId("msg"),
+      role: "user",
+      content: content,
+      timestamp: timestamp
+    }
+
+    messages.push(message)
+
+    saveSession(
+      {
+        id: session.id,
+        title: session.title === "New Chat" ? content.slice(0, 16) : session.title,
+        createTime: session.createTime,
+        updateTime: timestamp,
+        messages: messages
+      },
+      done
+    )
+  })
+}
+
+export function appendAssistantMessage(id, content, done) {
+  getChat(id, function(session) {
+    var timestamp = now()
+    var messages = (session.messages || []).slice()
+    var message = {
+      id: createId("msg"),
+      role: "assistant",
+      content: content,
+      timestamp: timestamp
+    }
+
+    messages.push(message)
+
+    saveSession(
+      {
+        id: session.id,
+        title: session.title,
+        createTime: session.createTime,
+        updateTime: timestamp,
+        messages: messages
+      },
+      done
+    )
+  })
+}
+
+export function askDeepSeek(id, content, done, fail) {
+  appendUserMessage(id, content, function(session) {
+    var history = session.messages.map(function(message) {
+      return {
+        role: message.role,
+        content: message.content
+      }
+    })
+
+    sendChatMessage(
+      history,
+      function(answer) {
+        appendAssistantMessage(id, answer, done)
+      },
+      fail
+    )
+  })
 }

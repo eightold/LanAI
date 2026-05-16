@@ -6,58 +6,64 @@ import {
   REQUEST_TIMEOUT
 } from "../utils/constants"
 
-function requestByFetch(options) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error("Request timeout"))
-    }, REQUEST_TIMEOUT)
-
-    fetch.fetch({
-      ...options,
-      success(response) {
-        clearTimeout(timer)
-        resolve(response)
-      },
-      fail(error) {
-        clearTimeout(timer)
-        reject(error)
-      }
-    })
-  })
-}
-
 function parseResponse(response) {
-  const raw = response && (response.data || response.body || response)
-  const data = typeof raw === "string" ? JSON.parse(raw) : raw
-  const choice = data && data.choices && data.choices[0]
-  const message = choice && choice.message
+  var raw = response && (response.data || response.body || response)
+  var data = typeof raw === "string" ? JSON.parse(raw) : raw
+  var choice = data && data.choices && data.choices[0]
+  var message = choice && choice.message
   return (message && message.content) || ""
 }
 
-export async function sendChatMessage(messages) {
+export function sendChatMessage(messages, done, fail) {
   if (!DEEPSEEK_API_KEY) {
-    throw new Error("DeepSeek API Key is not configured")
+    fail(new Error("DeepSeek API Key is not configured"))
+    return
   }
 
-  const response = await requestByFetch({
+  var finished = false
+  var timer = setTimeout(function() {
+    if (finished) {
+      return
+    }
+
+    finished = true
+    fail(new Error("Request timeout"))
+  }, REQUEST_TIMEOUT)
+
+  fetch.fetch({
     url: DEEPSEEK_ENDPOINT,
     method: "POST",
     header: {
-      Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+      Authorization: "Bearer " + DEEPSEEK_API_KEY,
       "Content-Type": "application/json"
     },
     data: JSON.stringify({
       model: DEEPSEEK_MODEL,
-      messages,
+      messages: messages,
       max_tokens: 300
-    })
+    }),
+    success: function(response) {
+      if (finished) {
+        return
+      }
+
+      finished = true
+      clearTimeout(timer)
+
+      try {
+        done(parseResponse(response))
+      } catch (error) {
+        fail(error)
+      }
+    },
+    fail: function(error) {
+      if (finished) {
+        return
+      }
+
+      finished = true
+      clearTimeout(timer)
+      fail(error)
+    }
   })
-
-  const content = parseResponse(response)
-
-  if (!content) {
-    throw new Error("Empty AI response")
-  }
-
-  return content
 }

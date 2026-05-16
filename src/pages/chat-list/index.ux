@@ -2,12 +2,12 @@
   <div class="page">
     <text class="title">LanAI</text>
 
-    <div class="empty" if="{{ chats.length === 0 }}">
+    <div class="empty" if="{{ isEmpty }}">
       <text class="empty-title">No Chats</text>
       <text class="empty-subtitle">Tap New Chat</text>
     </div>
 
-    <div class="chat-list" if="{{ chats.length > 0 }}">
+    <div class="chat-list" if="{{ hasChats }}">
       <div
         class="chat-card"
         for="item in chats"
@@ -30,7 +30,9 @@ import {createChat, deleteChat, listChats, setCurrentChatId} from "../../service
 
 export default {
   private: {
-    chats: []
+    chats: [],
+    hasChats: false,
+    isEmpty: true
   },
 
   onInit() {
@@ -41,28 +43,43 @@ export default {
     this.refresh()
   },
 
-  async refresh() {
-    this.chats = await listChats()
+  refresh() {
+    listChats(
+      function(chats) {
+        var list = chats || []
+        this.chats = list
+        this.hasChats = list.length > 0
+        this.isEmpty = list.length === 0
+      }.bind(this)
+    )
   },
 
-  async startChat() {
-    const chat = await createChat()
-    await this.openChat(chat.id)
+  startChat() {
+    createChat(
+      function(chat) {
+        this.openChat(chat.id)
+      }.bind(this)
+    )
   },
 
-  async openChat(id) {
-    await setCurrentChatId(id)
-    router.push({
-      uri: "/pages/chat"
+  openChat(id) {
+    setCurrentChatId(id, function() {
+      router.push({
+        uri: "/pages/chat"
+      })
     })
   },
 
-  async removeChat(id) {
-    await deleteChat(id)
-    prompt.showToast({
-      message: "Chat deleted"
-    })
-    await this.refresh()
+  removeChat(id) {
+    deleteChat(
+      id,
+      function() {
+        prompt.showToast({
+          message: "Chat deleted"
+        })
+        this.refresh()
+      }.bind(this)
+    )
   }
 }
 </script>

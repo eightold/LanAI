@@ -319,8 +319,24 @@ Phase 3（扩展功能，可选）
 使用 console.time/timeEnd 监控关键函数耗时
 
 7.3 参考文档
-Xiaomi Vela JS 官方文档
+Xiaomi Vela JS 官方文档 
 
-DeepSeek API 文档
+DeepSeek API 文档 https://api-docs.deepseek.com/
 
 本指南适用于 AI Agent 辅助开发及团队协作。遇到未覆盖问题，请优先遵循"简洁、稳定、低功耗"的核心原则。
+## Vela pre4.0 Debug Notes
+
+When debugging on `vela-pre4.0`, if the screen is black/white and the DevTools Elements panel is empty, do not assume it is a CSS or page layout issue. Empty Elements usually means the entry page did not mount.
+
+Known recovery workflow:
+
+1. First replace the entry page with a static smoke page: no `@system.*` imports, no service imports, no storage/fetch/router calls.
+2. Keep the entry path conservative: use `pages/index` instead of a hyphenated route such as `pages/chat-list`.
+3. Verify that the smoke page appears in both screen and Elements. The tested text was `LanAI / pre4 smoke page`.
+4. Add features back one layer at a time. Start with static UI, then router navigation, then local page state, then storage, then network.
+5. Avoid static-importing heavy service chains from the entry page on pre4.0. A static import of chat services can pull in `system.storage`, `system.fetch`, and API modules before the first render, causing the entry page to fail before Elements has nodes.
+6. Prefer callback-style code for pre4.0 compatibility. Avoid `async/await`, `Promise`, object spread, dynamic class binding, and complex template expressions in first-render paths.
+7. If a smoke page renders but the full page does not, the issue is likely an imported system module, route configuration, or startup-side effect rather than the package format.
+8. If even the smoke page does not render, check package name, stale installed RPK, start page, and AIOT toolkit compatibility with the selected `vela-pre4.0` image.
+
+---

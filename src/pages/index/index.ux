@@ -1,0 +1,306 @@
+<template>
+  <div class="page">
+    <text class="title">LanAI</text>
+
+    <div class="empty" if="{{ isEmpty }}">
+      <text class="empty-title">No Chats</text>
+      <text class="empty-subtitle">Tap New Chat</text>
+    </div>
+
+    <div class="chat-list" if="{{ hasChats }}">
+      <div class="chat-card" for="item in chats" onclick="openChat(item.id)" onlongpress="removeChat(item.id)">
+        <text class="chat-title">{{ item.title }}</text>
+        <text class="chat-preview">{{ item.preview }}</text>
+      </div>
+    </div>
+
+    <input class="new-button" type="button" value="+ New Chat" onclick="startChat" />
+  </div>
+</template>
+
+<script>
+var CHAT_LIST_KEY = "chat_list"
+var CURRENT_CHAT_ID_KEY = "current_chat_id"
+
+function createId(prefix) {
+  return prefix + "_" + Date.now()
+}
+
+export default {
+  private: {
+    chats: [],
+    hasChats: false,
+    isEmpty: true
+  },
+
+  onShow() {
+    setTimeout(
+      function() {
+        this.refresh()
+      }.bind(this),
+      0
+    )
+  },
+
+  getStorage() {
+    try {
+      return require("@system.storage")
+    } catch (error) {
+      console.error("storage unavailable", error)
+      return null
+    }
+  },
+
+  readJson(key, fallback, done) {
+    var storage = this.getStorage()
+
+    if (!storage) {
+      done(fallback)
+      return
+    }
+
+    storage.get({
+      key: key,
+      success: function(value) {
+        if (!value) {
+          done(fallback)
+          return
+        }
+
+        try {
+          done(JSON.parse(value))
+        } catch (error) {
+          done(fallback)
+        }
+      },
+      fail: function() {
+        done(fallback)
+      }
+    })
+  },
+
+  writeJson(key, value, done) {
+    var storage = this.getStorage()
+
+    if (!storage) {
+      if (done) {
+        done()
+      }
+      return
+    }
+
+    storage.set({
+      key: key,
+      value: JSON.stringify(value),
+      success: function() {
+        if (done) {
+          done()
+        }
+      },
+      fail: function() {
+        if (done) {
+          done()
+        }
+      }
+    })
+  },
+
+  removeValue(key, done) {
+    var storage = this.getStorage()
+    var removeApi = storage && (storage.delete || storage.remove)
+
+    if (!removeApi) {
+      if (done) {
+        done()
+      }
+      return
+    }
+
+    removeApi({
+      key: key,
+      success: function() {
+        if (done) {
+          done()
+        }
+      },
+      fail: function() {
+        if (done) {
+          done()
+        }
+      }
+    })
+  },
+
+  showToast(message) {
+    try {
+      var prompt = require("@system.prompt")
+      prompt.showToast({
+        message: message
+      })
+    } catch (error) {
+      console.log(message)
+    }
+  },
+
+  refresh() {
+    this.readJson(
+      CHAT_LIST_KEY,
+      [],
+      function(chats) {
+        var list = chats || []
+        this.chats = list
+        this.hasChats = list.length > 0
+        this.isEmpty = list.length === 0
+      }.bind(this)
+    )
+  },
+
+  startChat() {
+    var chat = {
+      id: createId("chat"),
+      title: "New Chat",
+      preview: "Local conversation",
+      updateTime: Date.now()
+    }
+    var list = [chat].concat(this.chats || [])
+
+    this.writeJson(
+      CHAT_LIST_KEY,
+      list,
+      function() {
+        this.openChat(chat.id)
+      }.bind(this)
+    )
+  },
+
+  openChat(id) {
+    var storage = this.getStorage()
+    var router = require("@system.router")
+
+    if (!storage) {
+      router.push({
+        uri: "/pages/chat"
+      })
+      return
+    }
+
+    storage.set({
+      key: CURRENT_CHAT_ID_KEY,
+      value: id,
+      success: function() {
+        router.push({
+          uri: "/pages/chat"
+        })
+      },
+      fail: function() {
+        router.push({
+          uri: "/pages/chat"
+        })
+      }
+    })
+  },
+
+  removeChat(id) {
+    var nextList = []
+    var i = 0
+
+    for (i = 0; i < this.chats.length; i++) {
+      if (this.chats[i].id !== id) {
+        nextList.push(this.chats[i])
+      }
+    }
+
+    this.writeJson(
+      CHAT_LIST_KEY,
+      nextList,
+      function() {
+        this.removeValue(
+          "chat_" + id,
+          function() {
+            this.chats = nextList
+            this.hasChats = nextList.length > 0
+            this.isEmpty = nextList.length === 0
+            this.showToast("Chat deleted")
+          }.bind(this)
+        )
+      }.bind(this)
+    )
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  padding: 24px 22px;
+  flex-direction: column;
+  background-color: #101418;
+}
+
+.title {
+  height: 34px;
+  font-size: 22px;
+  font-weight: bold;
+  text-align: center;
+  color: #ffffff;
+}
+
+.empty {
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.empty-title {
+  font-size: 18px;
+  color: #f8fafc;
+}
+
+.empty-subtitle {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #9aa5b1;
+}
+
+.chat-list {
+  flex: 1;
+  margin-top: 12px;
+  flex-direction: column;
+}
+
+.chat-card {
+  width: 100%;
+  min-height: 58px;
+  margin-bottom: 8px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background-color: #1f2933;
+  flex-direction: column;
+}
+
+.chat-title {
+  font-size: 16px;
+  color: #ffffff;
+  lines: 1;
+}
+
+.chat-preview {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #a8b3bf;
+  lines: 1;
+}
+
+.new-button {
+  width: 100%;
+  height: 46px;
+  margin-top: 8px;
+  border-radius: 16px;
+  background-color: #1fbf75;
+  color: #07130d;
+  font-size: 17px;
+  font-weight: bold;
+}
+</style>

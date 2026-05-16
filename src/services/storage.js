@@ -1,66 +1,79 @@
 import storage from "@system.storage"
 
-function readValue(key) {
-  return new Promise(resolve => {
-    storage.get({
-      key,
-      success(data) {
-        resolve(data)
-      },
-      fail() {
-        resolve("")
-      }
-    })
+function readValue(key, done) {
+  storage.get({
+    key: key,
+    success: function(data) {
+      done(data || "")
+    },
+    fail: function() {
+      done("")
+    }
   })
 }
 
-function writeValue(key, value) {
-  return new Promise(resolve => {
-    storage.set({
-      key,
-      value,
-      success() {
-        resolve(true)
-      },
-      fail() {
-        resolve(false)
+function writeValue(key, value, done) {
+  storage.set({
+    key: key,
+    value: value,
+    success: function() {
+      if (done) {
+        done(true)
       }
-    })
+    },
+    fail: function() {
+      if (done) {
+        done(false)
+      }
+    }
   })
 }
 
-function removeValue(key) {
-  return new Promise(resolve => {
-    storage.delete({
-      key,
-      success() {
-        resolve(true)
-      },
-      fail() {
-        resolve(false)
-      }
-    })
-  })
-}
+function removeValue(key, done) {
+  var deleteApi = storage.delete || storage.remove
 
-export async function getJson(key, fallback) {
-  const value = await readValue(key)
-
-  if (!value) {
-    return fallback
+  if (!deleteApi) {
+    if (done) {
+      done(false)
+    }
+    return
   }
 
-  try {
-    return JSON.parse(value)
-  } catch (error) {
-    console.error("storage parse error", error)
-    await writeJson(key, fallback)
-    return fallback
-  }
+  deleteApi({
+    key: key,
+    success: function() {
+      if (done) {
+        done(true)
+      }
+    },
+    fail: function() {
+      if (done) {
+        done(false)
+      }
+    }
+  })
 }
 
-export function writeJson(key, value) {
-  return writeValue(key, JSON.stringify(value))
+export function getJson(key, fallback, done) {
+  readValue(key, function(value) {
+    if (!value) {
+      done(fallback)
+      return
+    }
+
+    try {
+      done(JSON.parse(value))
+    } catch (error) {
+      console.error("storage parse error", error)
+      writeJson(key, fallback, function() {
+        done(fallback)
+      })
+    }
+  })
+}
+
+export function writeJson(key, value, done) {
+  writeValue(key, JSON.stringify(value), done)
 }
 
 export {readValue, writeValue, removeValue}

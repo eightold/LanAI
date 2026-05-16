@@ -1,5 +1,5 @@
 function pad(value) {
-  return value < 10 ? `0${value}` : `${value}`
+  return value < 10 ? "0" + value : "" + value
 }
 
 export function now() {
@@ -11,6 +11,6 @@ export function formatTime(timestamp) {
     return "--:--"
   }
 
-  const date = new Date(timestamp)
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  var date = new Date(timestamp)
+  return pad(date.getHours()) + ":" + pad(date.getMinutes())
 }
