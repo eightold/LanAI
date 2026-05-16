@@ -7,9 +7,11 @@
     </div>
 
     <div class="messages" style="bottom: {{ msgBottom }}px;">
-      <div class="message-row" for="item in displayMessages">
-        <text class="bubble">{{ item.content }}</text>
-      </div>
+      <scroll id="msgScroll" style="flex: 1; flex-direction: column;">
+        <div class="message-row" for="item in displayMessages">
+          <text class="bubble">{{ item.content }}</text>
+        </div>
+      </scroll>
     </div>
 
     <div class="input-area" style="bottom: {{ inputBottom }}px;">
@@ -157,6 +159,16 @@ export default {
     this.displayMessages = display
   },
 
+  scrollToBottom() {
+    var self = this;
+    setTimeout(function() {
+      self.$element("msgScroll").scrollTo({
+        top: 99999,
+        behavior: "smooth"
+      });
+    }, 100);
+  },
+
   loadChat() {
     this.readValue(
       CURRENT_CHAT_ID_KEY,
@@ -174,6 +186,7 @@ export default {
             this.title = chat.title || "Chat"
             this.messages = chat.messages || []
             this.normalizeMessages(this.messages)
+            this.scrollToBottom()
           }.bind(this)
         )
       }.bind(this)
@@ -291,6 +304,7 @@ export default {
     this.keyboardHide = true
     this.updateLayout()
     this.normalizeMessages(this.messages)
+    this.scrollToBottom()
     this.saveChat(function() {})
   },
 
