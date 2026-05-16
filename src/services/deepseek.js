@@ -14,8 +14,10 @@ function parseResponse(response) {
   return (message && message.content) || ""
 }
 
-export function sendChatMessage(messages, done, fail) {
-  if (!DEEPSEEK_API_KEY) {
+export function sendChatMessage(messages, done, fail, apiKey) {
+  var key = apiKey || DEEPSEEK_API_KEY
+
+  if (!key) {
     fail(new Error("DeepSeek API Key is not configured"))
     return
   }
@@ -34,7 +36,7 @@ export function sendChatMessage(messages, done, fail) {
     url: DEEPSEEK_ENDPOINT,
     method: "POST",
     header: {
-      Authorization: "Bearer " + DEEPSEEK_API_KEY,
+      Authorization: "Bearer " + key,
       "Content-Type": "application/json"
     },
     data: JSON.stringify({

@@ -2,11 +2,12 @@ export var APP_NAME = "LanAI"
 
 export var STORAGE_KEYS = {
   CHAT_LIST: "chat_list",
-  CURRENT_CHAT_ID: "current_chat_id"
+  CURRENT_CHAT_ID: "current_chat_id",
+  API_KEY: "settings_api_key"
 }
 
 export var DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions"
-export var DEEPSEEK_MODEL = "deepseek-chat"
+export var DEEPSEEK_MODEL = "deepseek-v4-flash"
 export var DEEPSEEK_API_KEY = "sk-18560b9314b9476a9eb527da9558a716"
 
 export var MAX_MESSAGES = 50

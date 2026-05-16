@@ -35,8 +35,12 @@
 </template>
 
 <script>
+import { sendChatMessage } from "../../services/deepseek"
+import { DEEPSEEK_API_KEY, STORAGE_KEYS } from "../../utils/constants"
+
 var CHAT_LIST_KEY = "chat_list"
 var CURRENT_CHAT_ID_KEY = "current_chat_id"
+var API_KEY_STORAGE = STORAGE_KEYS.API_KEY
 
 function getChatKey(id) {
   return "chat_" + id
@@ -48,6 +52,7 @@ export default {
     title: "Chat",
     draft: "",
     messages: [],
+    requestState: "idle",
     keyboardHide: true,
     msgBottom: 72,
     inputBottom: 18,
@@ -282,30 +287,97 @@ export default {
   },
 
   send() {
-    var content = (this.draft || "").trim()
-
-    if (!content) {
-      return
+    var content = (this.draft || "").trim();
+    if (!content || this.requestState === "loading") {
+      return;
     }
 
+    this.draft = "";
+    this.keyboardHide = true;
+    this.updateLayout();
+
+    var loadingId = "loading_" + Date.now();
     this.messages = this.messages.concat([
-      {
-        id: "user_" + Date.now(),
-        role: "user",
-        content: content
-      },
-      {
-        id: "ai_" + Date.now(),
-        role: "assistant",
-        content: "DeepSeek is not connected yet"
+      { id: "user_" + Date.now(), role: "user", content: content },
+      { id: loadingId, role: "assistant", content: "Thinking..." }
+    ]);
+    this.requestState = "loading";
+
+    this.normalizeMessages(this.messages);
+    this.scrollToBottom();
+    this.saveChat(function() {});
+
+    var apiMessages = [];
+    for (var i = 0; i < this.messages.length; i++) {
+      if (this.messages[i].id !== loadingId) {
+        apiMessages.push({
+          role: this.messages[i].role,
+          content: this.messages[i].content
+        });
       }
-    ])
-    this.draft = ""
-    this.keyboardHide = true
-    this.updateLayout()
-    this.normalizeMessages(this.messages)
-    this.scrollToBottom()
-    this.saveChat(function() {})
+    }
+
+    var self = this;
+    this.getApiKey(function(key) {
+      sendChatMessage(
+        apiMessages,
+        function(answer) {
+          self.replaceMessage(loadingId, {
+            id: "ai_" + Date.now(),
+            role: "assistant",
+            content: answer
+          });
+          self.requestState = "idle";
+          self.normalizeMessages(self.messages);
+          self.scrollToBottom();
+          self.saveChat(function() {});
+        },
+        function(error) {
+          var msg = "Network error";
+          if (error && error.message) {
+            msg = error.message;
+          }
+          self.replaceMessage(loadingId, {
+            id: "error_" + Date.now(),
+            role: "assistant",
+            content: msg + ", please retry"
+          });
+          self.requestState = "idle";
+          self.normalizeMessages(self.messages);
+          self.saveChat(function() {});
+        },
+        key
+      );
+    });
+  },
+
+  getApiKey(done) {
+    var storage = this.getStorage();
+    if (!storage) {
+      done(DEEPSEEK_API_KEY);
+      return;
+    }
+    storage.get({
+      key: API_KEY_STORAGE,
+      success: function(value) {
+        done(value || DEEPSEEK_API_KEY);
+      },
+      fail: function() {
+        done(DEEPSEEK_API_KEY);
+      }
+    });
+  },
+
+  replaceMessage(oldId, newMsg) {
+    var arr = [];
+    for (var i = 0; i < this.messages.length; i++) {
+      if (this.messages[i].id === oldId) {
+        arr.push(newMsg);
+      } else {
+        arr.push(this.messages[i]);
+      }
+    }
+    this.messages = arr;
   },
 
   back() {

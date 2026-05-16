@@ -14,13 +14,27 @@
       </div>
     </div>
 
+    <div class="settings-section">
+      <div class="settings-header" onclick="toggleSettings">
+        <text class="settings-label">API Key: {{ apiStatus }}</text>
+      </div>
+      <div class="settings-body" if="{{ showSettings }}">
+        <input class="key-input" type="text" placeholder="Enter API Key" value="{{ keyDraft }}" onchange="onKeyChange" />
+        <input class="key-save" type="button" value="Save" onclick="saveKey" />
+      </div>
+    </div>
+
     <input class="new-button" type="button" value="+ New Chat" onclick="startChat" />
   </div>
 </template>
 
 <script>
+import {readValue, writeValue} from "../../services/storage"
+import {STORAGE_KEYS} from "../../utils/constants"
+
 var CHAT_LIST_KEY = "chat_list"
 var CURRENT_CHAT_ID_KEY = "current_chat_id"
+var API_KEY = STORAGE_KEYS.API_KEY
 
 function createId(prefix) {
   return prefix + "_" + Date.now()
@@ -30,13 +44,17 @@ export default {
   private: {
     chats: [],
     hasChats: false,
-    isEmpty: true
+    isEmpty: true,
+    showSettings: false,
+    apiStatus: "Default",
+    keyDraft: ""
   },
 
   onShow() {
     setTimeout(
       function() {
         this.refresh()
+        this.loadKeyStatus()
       }.bind(this),
       0
     )
@@ -225,6 +243,32 @@ export default {
         )
       }.bind(this)
     )
+  },
+
+  loadKeyStatus() {
+    var self = this;
+    readValue(API_KEY, function(value) {
+      self.apiStatus = value ? "Custom" : "Default";
+    });
+  },
+
+  toggleSettings() {
+    this.showSettings = !this.showSettings;
+  },
+
+  onKeyChange(evt) {
+    this.keyDraft = (evt && evt.value) || "";
+  },
+
+  saveKey() {
+    var key = (this.keyDraft || "").trim();
+    var self = this;
+    writeValue(API_KEY, key, function() {
+      self.apiStatus = key ? "Custom" : "Default";
+      self.keyDraft = "";
+      self.showSettings = false;
+      prompt.showToast({ message: key ? "Key saved" : "Reset to default key" });
+    });
   }
 }
 </script>
@@ -291,6 +335,52 @@ export default {
   font-size: 13px;
   color: #a8b3bf;
   lines: 1;
+}
+
+.settings-section {
+  width: 100%;
+  flex-direction: column;
+}
+
+.settings-header {
+  height: 40px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background-color: #1f2933;
+  justify-content: center;
+}
+
+.settings-label {
+  font-size: 14px;
+  color: #9aa5b1;
+}
+
+.settings-body {
+  width: 100%;
+  margin-top: 6px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.key-input {
+  flex: 1;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background-color: #1f2933;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.key-save {
+  width: 60px;
+  height: 40px;
+  margin-left: 6px;
+  border-radius: 12px;
+  background-color: #f4c542;
+  color: #1b1b12;
+  font-size: 14px;
+  font-weight: bold;
 }
 
 .new-button {
