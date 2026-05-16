@@ -20,6 +20,12 @@
     },
     {
       "name": "system.prompt"
+    },
+    {
+      "name": "system.vibrator"
+    },
+    {
+      "name": "system.device"
     }
   ],
   "config": {
