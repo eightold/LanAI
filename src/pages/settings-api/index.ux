@@ -1,0 +1,142 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <input class="back-button" type="button" value="<" onclick="back" />
+      <text class="title">API 设置</text>
+    </div>
+
+    <div class="section">
+      <text class="label">API Key: {{ apiStatus }}</text>
+      <input class="key-input" type="text" placeholder="Enter API Key" value="{{ keyDraft }}" onchange="onKeyChange" />
+      <input class="key-save" type="button" value="Save" onclick="saveKey" />
+    </div>
+
+    <div class="hint">
+      <text class="hint-text">API Key 用于调用 DeepSeek 服务，保存在本地</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import {readValue, writeValue} from "../../services/storage"
+import {STORAGE_KEYS} from "../../utils/constants"
+
+var API_KEY = STORAGE_KEYS.API_KEY
+
+export default {
+  private: {
+    apiStatus: "Default",
+    keyDraft: ""
+  },
+
+  onShow() {
+    setTimeout(
+      function() {
+        this.loadKeyStatus()
+      }.bind(this),
+      0
+    )
+  },
+
+  loadKeyStatus() {
+    var self = this;
+    readValue(API_KEY, function(value) {
+      self.apiStatus = value ? "Custom" : "Default";
+    });
+  },
+
+  onKeyChange(evt) {
+    this.keyDraft = (evt && evt.value) || "";
+  },
+
+  saveKey() {
+    var key = (this.keyDraft || "").trim();
+    var self = this;
+    var prompt = require("@system.prompt")
+    writeValue(API_KEY, key, function() {
+      self.apiStatus = key ? "Custom" : "Default";
+      self.keyDraft = "";
+      prompt.showToast({ message: key ? "Key saved" : "Reset to default key" });
+    });
+  },
+
+  back() {
+    var router = require("@system.router")
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  padding: 24px 22px;
+  flex-direction: column;
+  background-color: #101418;
+}
+
+.header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.back-button {
+  width: 38px;
+  height: 34px;
+  border-radius: 16px;
+  background-color: #25313d;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.title {
+  flex: 1;
+  margin-left: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.section {
+  width: 100%;
+  flex-direction: column;
+}
+
+.label {
+  font-size: 14px;
+  color: #9aa5b1;
+  margin-bottom: 8px;
+}
+
+.key-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background-color: #1f2933;
+  color: #ffffff;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.key-save {
+  width: 100%;
+  height: 44px;
+  border-radius: 14px;
+  background-color: #f4c542;
+  color: #1b1b12;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.hint {
+  margin-top: 12px;
+}
+
+.hint-text {
+  font-size: 12px;
+  color: #6b7a8a;
+}
+</style>

@@ -1,0 +1,115 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <input class="back-button" type="button" value="<" onclick="back" />
+      <text class="title">关于</text>
+    </div>
+
+    <div class="content">
+      <image class="logo" src="/common/logo.png"></image>
+      <text class="app-name">LanAI</text>
+      <text class="app-desc">轻量级 AI 聊天应用</text>
+      <div class="info-row">
+        <text class="info-label">版本</text>
+        <text class="info-value">1.0.0</text>
+      </div>
+      <div class="info-row">
+        <text class="info-label">作者</text>
+        <text class="info-value">LanZX</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  back() {
+    var router = require("@system.router")
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  padding: 24px 22px;
+  flex-direction: column;
+  background-color: #101418;
+}
+
+.header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.back-button {
+  width: 38px;
+  height: 34px;
+  border-radius: 16px;
+  background-color: #25313d;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.title {
+  flex: 1;
+  margin-left: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.content {
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+}
+
+.app-name {
+  font-size: 20px;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.app-desc {
+  font-size: 14px;
+  color: #9aa5b1;
+  margin-bottom: 24px;
+}
+
+.info-row {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background-color: #1f2933;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.info-label {
+  font-size: 14px;
+  color: #9aa5b1;
+  width: 60px;
+}
+
+.info-value {
+  flex: 1;
+  font-size: 14px;
+  color: #ffffff;
+  text-align: right;
+}
+</style>

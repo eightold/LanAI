@@ -40,6 +40,15 @@
       },
       "pages/chat": {
         "component": "index"
+      },
+      "pages/settings": {
+        "component": "index"
+      },
+      "pages/settings-api": {
+        "component": "index"
+      },
+      "pages/settings-about": {
+        "component": "index"
       }
     }
   }

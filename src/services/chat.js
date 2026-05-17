@@ -2,7 +2,7 @@ import {MAX_MESSAGES, STORAGE_KEYS} from "../utils/constants"
 import {createId} from "../utils/uuid"
 import {now} from "../utils/time"
 import {getJson, readValue, removeValue, writeJson, writeValue} from "./storage"
-import {sendChatMessage} from "./deepseek"
+
 
 function getChatKey(id) {
   return "chat_" + id
@@ -158,21 +158,4 @@ export function appendAssistantMessage(id, content, done) {
   })
 }
 
-export function askDeepSeek(id, content, done, fail) {
-  appendUserMessage(id, content, function(session) {
-    var history = session.messages.map(function(message) {
-      return {
-        role: message.role,
-        content: message.content
-      }
-    })
 
-    sendChatMessage(
-      history,
-      function(answer) {
-        appendAssistantMessage(id, answer, done)
-      },
-      fail
-    )
-  })
-}

@@ -1,0 +1,101 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <input class="back-button" type="button" value="<" onclick="back" />
+      <text class="title">设置</text>
+    </div>
+
+    <div class="menu-list">
+      <div class="menu-item" onclick="openApiSettings">
+        <text class="menu-text">API</text>
+        <text class="menu-arrow">></text>
+      </div>
+      <div class="menu-item" onclick="openAbout">
+        <text class="menu-text">关于</text>
+        <text class="menu-arrow">></text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  openApiSettings() {
+    var router = require("@system.router")
+    router.push({
+      uri: "/pages/settings-api"
+    })
+  },
+
+  openAbout() {
+    var router = require("@system.router")
+    router.push({
+      uri: "/pages/settings-about"
+    })
+  },
+
+  back() {
+    var router = require("@system.router")
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  padding: 24px 22px;
+  flex-direction: column;
+  background-color: #101418;
+}
+
+.header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.back-button {
+  width: 38px;
+  height: 34px;
+  border-radius: 16px;
+  background-color: #25313d;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.title {
+  flex: 1;
+  margin-left: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.menu-list {
+  flex-direction: column;
+}
+
+.menu-item {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background-color: #1f2933;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.menu-text {
+  flex: 1;
+  font-size: 16px;
+  color: #ffffff;
+}
+
+.menu-arrow {
+  font-size: 18px;
+  color: #6b7a8a;
+}
+</style>
