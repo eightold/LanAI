@@ -7,7 +7,7 @@
 | 产品名称 | LanAI（暂定） |
 | 目标设备 | Xiaomi Watch S3（圆形屏幕） |
 | 技术平台 | Xiaomi Vela JS |
-| AI 服务 | DeepSeek API (`deepseek-chat`) |
+| AI 服务 | DeepSeek API (`deepseek-v4-flash`) / GLM API (`glm-5.1`) |
 | 核心目标 | 轻量、快速、可用、低功耗 |
 
 ### 1.2 核心功能（MVP）
@@ -15,7 +15,7 @@
 - 会话列表：展示历史聊天、新建聊天、删除聊天
 - 聊天页面：消息展示、文字输入、AI 回复
 - 本地存储：保存会话和消息记录
-- DeepSeek API 接入：发送消息并获取回复
+- AI API 接入：发送消息并获取回复（DeepSeek / GLM 双 Provider）
 
 ### 1.3 非功能性要求
 
@@ -52,7 +52,7 @@ src/
 │ ├── message-item/ # 聊天气泡
 │ └── loading/ # 加载动画
 ├── services/ # 业务逻辑层
-│ ├── deepseek.js # API 请求封装
+│ ├── deepseek.js # API 请求封装（多 Provider 路由 + reasoning 回退解析）
 │ ├── storage.js # 本地存储操作
 │ └── chat.js # 聊天逻辑管理
 ├── utils/ # 工具函数
@@ -107,7 +107,7 @@ text
 3.1 功能验收
 功能	验收标准
 新建聊天	点击后创建新会话并跳转至聊天页
-AI 回复	发送消息后正常获取 DeepSeek 回复并显示
+AI 回复	发送消息后正常获取 AI 回复（DeepSeek / GLM）并显示
 历史记录	重启应用后会话和消息仍存在
 删除聊天	长按/右滑后删除，数据不可恢复
 输入功能	软键盘正常唤出，可输入并发送
@@ -146,7 +146,7 @@ javascript
 // 推荐
 async function sendMessage(text) {
   try {
-    const response = await deepseekApi.chat(text);
+    const response = await sendChatMessage(messages, done, fail, key, endpoint, model, maxTokens);
     return response;
   } catch (error) {
     console.error('API error:', error);
@@ -192,12 +192,16 @@ css
 
 javascript
 /**
- * 发送消息到 DeepSeek API
- * @param {string} content - 用户消息内容
- * @param {Array} history - 历史消息（可选）
- * @returns {Promise<string>} AI 回复内容
+ * 发送消息到 AI API（根据 Provider 路由 DeepSeek / GLM）
+ * @param {Array} messages - 消息历史
+ * @param {Function} done - 成功回调
+ * @param {Function} fail - 失败回调
+ * @param {string} apiKey - API Key
+ * @param {string} endpoint - API 端点
+ * @param {string} model - 模型名称
+ * @param {number} maxTokens - 最大 token 数
  */
-async function sendMessage(content, history = []) {
+function sendChatMessage(messages, done, fail, apiKey, endpoint, model, maxTokens) {
   // ...
 }
 4.4 错误处理规范
@@ -234,9 +238,11 @@ API 请求慢	显示 loading 动画，不允许连续点击发送
 5.3 API Key 安全（强烈警告）
 禁止在前端代码中硬编码 API Key
 
+当前状态：双 Provider（DeepSeek + GLM）各持独立 Key，通过设置页面分别输入保存
+
 推荐方案：自建服务端代理，由服务端管理 Key
 
-MVP 临时方案：混淆 + 限制额度 + 速率限制，但存在泄露风险
+MVP 临时方案：混淆 + 限制额度 + 速率限制 + `constants.js` 存放默认 Key（用户可通过设置覆盖）
 
 5.4 输入法限制
 手表软键盘体验较差，建议增加快捷输入按钮（如"你好"、"翻译一下"）
@@ -246,7 +252,7 @@ MVP 临时方案：混淆 + 限制额度 + 速率限制，但存在泄露风险
 发送后清空输入框并收起键盘
 
 5.5 长文本处理
-请求 DeepSeek 时设置 max_tokens: 300，避免回复过长
+请求时按 Provider 设置 max_tokens：DeepSeek 300，GLM 1024（reasoning 模型需更大配额）
 
 长文本自动换段，确保圆形屏幕内不溢出
 
@@ -282,7 +288,7 @@ Phase 1（MVP）
 
 实现聊天页面（消息展示、输入框）
 
-接入 DeepSeek API（非流式）
+接入 AI API（非流式，DeepSeek + GLM 双 Provider）
 
 实现本地存储（保存/加载会话）
 
@@ -322,6 +328,7 @@ Phase 3（扩展功能，可选）
 Xiaomi Vela JS 官方文档 
 
 DeepSeek API 文档 https://api-docs.deepseek.com/
+GLM API 文档 https://docs.bigmodel.cn/
 
 本指南适用于 AI Agent 辅助开发及团队协作。遇到未覆盖问题，请优先遵循"简洁、稳定、低功耗"的核心原则。
 ## Vela pre4.0 Debug Notes

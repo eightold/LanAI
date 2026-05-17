@@ -1,6 +1,6 @@
 # Xiaomi Watch S3 AI Chat App PRD
 
-> 基于 Xiaomi Vela JS + DeepSeek API 的轻量级 AI 聊天应用产品需求文档
+> 基于 Xiaomi Vela JS + DeepSeek / GLM API 的轻量级 AI 聊天应用产品需求文档
 
 ---
 
@@ -16,7 +16,7 @@
 
 随着 AI 助手逐渐普及，用户希望在更轻量、更便捷的设备上快速使用 AI 能力。智能手表具备“随时查看、快速交互”的特点，非常适合作为 AI 聊天入口。
 
-本产品计划基于 Xiaomi Watch S3 与 Xiaomi Vela JS 开发一个轻量级 AI 聊天应用，通过接入 DeepSeek API，实现：
+本产品计划基于 Xiaomi Watch S3 与 Xiaomi Vela JS 开发一个轻量级 AI 聊天应用，通过接入 DeepSeek / GLM API，实现：
 
 * AI 问答
 * 历史会话管理
@@ -164,7 +164,7 @@
 
 ### 功能描述
 
-用户与 DeepSeek AI 对话的核心页面。
+用户与 AI 对话的核心页面（支持 DeepSeek / GLM）。
 
 ---
 
@@ -214,7 +214,7 @@
 ```text
 输入文字
  → 点击发送
- → 请求 DeepSeek API
+ → 请求 AI API（按当前 Provider 路由）
  → 返回结果
  → 渲染 AI 回复
 ```
@@ -300,11 +300,16 @@ Please retry
 
 ---
 
-## 2.2.4 DeepSeek API 接入
+## 2.2.4 AI API 接入
 
 ### 功能描述
 
-通过 HTTPS 请求 DeepSeek Chat API。
+通过 HTTPS 请求 AI Chat API。支持双 Provider：
+
+| Provider | Endpoint | 模型 |
+| -------- | -------- | ---- |
+| DeepSeek | `https://api.deepseek.com/chat/completions` | `deepseek-v4-flash` |
+| GLM（智谱） | `https://open.bigmodel.cn/api/paas/v4/chat/completions` | `glm-5.1` |
 
 ---
 
@@ -312,8 +317,8 @@ Please retry
 
 ```text
 Watch App
-   ↓
-DeepSeek API
+   ↓ 读取 MODEL_PROVIDER + 对应 API Key
+DeepSeek API / GLM API
    ↓
 返回 AI 回复
 ```
@@ -323,22 +328,40 @@ DeepSeek API
 ### API Endpoint
 
 ```text
-https://api.deepseek.com/chat/completions
+POST /chat/completions
 ```
 
 ---
 
 ### Request 示例
 
+DeepSeek（`max_tokens: 300`）：
+
 ```json
 {
-  "model": "deepseek-chat",
+  "model": "deepseek-v4-flash",
   "messages": [
     {
       "role": "user",
       "content": "你好"
     }
-  ]
+  ],
+  "max_tokens": 300
+}
+```
+
+GLM（`max_tokens: 1024`，因 reasoning 模型需更大配额）：
+
+```json
+{
+  "model": "glm-5.1",
+  "messages": [
+    {
+      "role": "user",
+      "content": "你好"
+    }
+  ],
+  "max_tokens": 1024
 }
 ```
 
@@ -347,7 +370,7 @@ https://api.deepseek.com/chat/completions
 ### Header
 
 ```text
-Authorization: Bearer API_KEY
+Authorization: Bearer <对应Provider的API_KEY>
 Content-Type: application/json
 ```
 
@@ -365,7 +388,7 @@ Content-Type: application/json
 | 新建聊天            | P0  |
 | 删除聊天            | P0  |
 | 聊天页面            | P0  |
-| DeepSeek API 调用 | P0  |
+| AI API 调用（DeepSeek / GLM） | P0  |
 | 本地保存聊天记录        | P0  |
 | 文字输入            | P0  |
 | 加载状态            | P1  |
@@ -554,7 +577,7 @@ Local Storage（JSON）
 
 ```text
 /api
-  ├── deepseek.js
+  ├── deepseek.js    (多 Provider 路由，reasoning 回退解析)
   ├── storage.js
   └── chat.js
 ```
@@ -566,15 +589,19 @@ Local Storage（JSON）
 ```text
 src/
  ├── pages/
- │    ├── chat-list/
- │    └── chat/
+ │    ├── index/          (首页 + 聊天列表)
+ │    ├── chat/           (聊天页)
+ │    ├── settings/       (设置列表)
+ │    ├── settings-api/   (双 Key 配置)
+ │    ├── settings-model/ (Provider 切换)
+ │    └── settings-about/ (关于页)
  │
  ├── components/
  │    ├── message-item/
  │    └── input-box/
  │
  ├── services/
- │    ├── deepseek.js
+ │    ├── deepseek.js     (API 请求 —— DeepSeek / GLM)
  │    └── storage.js
  │
  ├── utils/
@@ -745,7 +772,7 @@ AI 回复可能较慢。
 | 功能    | 验收标准             |
 | ----- | ---------------- |
 | 新建聊天  | 成功创建并进入聊天页       |
-| AI 回复 | 正常获取 DeepSeek 回复 |
+| AI 回复 | 正常获取 AI 回复（DeepSeek / GLM） |
 | 历史记录  | 重启后仍存在           |
 | 删除聊天  | 删除后不可恢复          |
 | 输入功能  | 可正常输入发送          |

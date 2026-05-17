@@ -1,6 +1,6 @@
 # Xiaomi Watch S3 AI Chat App 技术设计文档
 
-> 基于 Xiaomi Vela JS + DeepSeek API 的 AI 聊天应用技术方案
+> 基于 Xiaomi Vela JS + DeepSeek / GLM API 的 AI 聊天应用技术方案
 
 ---
 
@@ -17,10 +17,10 @@
 └─────────┬───────────┘
           │ HTTPS
           ▼
-┌─────────────────────┐
-│ DeepSeek API        │
-│ chat/completions    │
-└─────────────────────┘
+┌──────────────────────────────┐
+│ DeepSeek API / GLM API       │
+│ chat/completions             │
+└──────────────────────────────┘
 ```
 
 ---
@@ -61,9 +61,20 @@
 
 ---
 
-## DeepSeek API
+## 多 Provider 支持
 
-采用：
+项目支持切换两种 AI Provider：
+
+| Provider | Endpoint | 默认模型 |
+| -------- | -------- | -------- |
+| DeepSeek | `https://api.deepseek.com/chat/completions` | `deepseek-v4-flash` |
+| GLM（智谱） | `https://open.bigmodel.cn/api/paas/v4/chat/completions` | `glm-5.1` |
+
+---
+
+## API 格式
+
+两者均采用：
 
 ```text id="f02xv0"
 OpenAI Compatible API
@@ -72,8 +83,10 @@ OpenAI Compatible API
 接口：
 
 ```text id="c03y9i"
-https://api.deepseek.com/chat/completions
+POST /chat/completions
 ```
+
+认证方式均为 `Bearer + API Key`。
 
 ---
 
@@ -82,7 +95,7 @@ https://api.deepseek.com/chat/completions
 MVP 推荐：
 
 ```text id="1c0nqv"
-deepseek-chat
+deepseek-v4-flash / glm-5.1
 ```
 
 原因：
@@ -91,6 +104,8 @@ deepseek-chat
 * 响应快
 * API 简单
 * 与 OpenAI SDK 兼容
+
+切换方式：设置 → 模型选择 → 全局切换，按 Provider 路由不同 endpoint 及 API Key。
 
 ---
 
@@ -265,8 +280,9 @@ src/
 
 负责：
 
-* API 请求
+* API 请求（DeepSeek / GLM 双 provider）
 * AI 对话
+* Response 解析（含 reasoning_content 回退）
 
 ---
 
@@ -387,7 +403,7 @@ interface Message {
 
 ---
 
-# 3.4 DeepSeek Request Model
+# 3.4 AI Request / Response Model
 
 ---
 
@@ -395,19 +411,24 @@ interface Message {
 
 ```json id="ysotlr"
 {
-  "model": "deepseek-chat",
+  "model": "deepseek-v4-flash",
   "messages": [
     {
       "role": "user",
       "content": "你好"
     }
-  ]
+  ],
+  "max_tokens": 300
 }
 ```
+
+GLM reasoning 模型（`glm-5.1`）需更大的 `max_tokens`（推荐 1024），因其输出包含 `reasoning_content` 思考链。
 
 ---
 
 ## Response
+
+标准模型（DeepSeek）：
 
 ```json id="k0c3y8"
 {
@@ -421,6 +442,25 @@ interface Message {
   ]
 }
 ```
+
+GLM reasoning 模型：
+
+```json
+{
+  "choices": [
+    {
+      "finish_reason": "length",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "1. Analyze the Input..."
+      }
+    }
+  ]
+}
+```
+
+注意：解析时需回退 `message.content || message.reasoning_content`，避免 reasoning 模型返回空内容。
 
 ---
 
@@ -614,6 +654,12 @@ storage 为 Key-Value 模型。([iot.mi.com][2])
 
 ---
 
+## 当前方案
+
+项目支持双 Provider（DeepSeek + GLM），各自独立 API Key，通过设置页面分别输入保存至本地 storage。
+
+---
+
 ## 问题
 
 如果：
@@ -643,7 +689,7 @@ Watch App
    ↓
 自建 Server
    ↓
-DeepSeek API
+DeepSeek API / GLM API
 ```
 
 由服务端管理 API Key。
@@ -652,9 +698,10 @@ DeepSeek API
 
 ## MVP 临时方案
 
-如果必须前端调用：
+当前采用：
 
-* API Key 混淆
+* 各 Provider 独立 Key，通过设置页面输入
+* 默认 Key 存放于 `constants.js`（深度混淆可降低风险）
 * 限制额度
 * 设置速率限制
 
