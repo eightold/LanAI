@@ -36,11 +36,21 @@
 
 <script>
 import { sendChatMessage } from "../../services/deepseek"
-import { DEEPSEEK_API_KEY, STORAGE_KEYS } from "../../utils/constants"
+import {
+  DEEPSEEK_API_KEY,
+  DEEPSEEK_ENDPOINT,
+  DEEPSEEK_MAX_TOKENS,
+  DEEPSEEK_MODEL,
+  GLM_API_KEY,
+  GLM_ENDPOINT,
+  GLM_MAX_TOKENS,
+  GLM_MODEL,
+  STORAGE_KEYS,
+  PROVIDERS
+} from "../../utils/constants"
 
 var CHAT_LIST_KEY = "chat_list"
 var CURRENT_CHAT_ID_KEY = "current_chat_id"
-var API_KEY_STORAGE = STORAGE_KEYS.API_KEY
 
 function getChatKey(id) {
   return "chat_" + id
@@ -318,7 +328,7 @@ export default {
     }
 
     var self = this;
-    this.getApiKey(function(key) {
+    this.getApiConfig(function(config) {
       sendChatMessage(
         apiMessages,
         function(answer) {
@@ -346,25 +356,78 @@ export default {
           self.normalizeMessages(self.messages);
           self.saveChat(function() {});
         },
-        key
+        config.key,
+        config.endpoint,
+        config.model,
+        config.maxTokens
       );
     });
   },
 
-  getApiKey(done) {
+  getApiConfig(done) {
     var storage = this.getStorage();
+
     if (!storage) {
-      done(DEEPSEEK_API_KEY);
+      done({
+        key: DEEPSEEK_API_KEY,
+        endpoint: DEEPSEEK_ENDPOINT,
+        model: DEEPSEEK_MODEL,
+        maxTokens: DEEPSEEK_MAX_TOKENS
+      });
       return;
     }
+
     storage.get({
-      key: API_KEY_STORAGE,
-      success: function(value) {
-        done(value || DEEPSEEK_API_KEY);
-      },
+      key: STORAGE_KEYS.MODEL_PROVIDER,
+      success: function(provider) {
+        var p = provider || PROVIDERS.DEEPSEEK;
+        var keyStorage = p === PROVIDERS.GLM ? STORAGE_KEYS.GLM_API_KEY : STORAGE_KEYS.API_KEY;
+        var defaultKey = p === PROVIDERS.GLM ? GLM_API_KEY : DEEPSEEK_API_KEY;
+        var endpoint = p === PROVIDERS.GLM ? GLM_ENDPOINT : DEEPSEEK_ENDPOINT;
+        var model = p === PROVIDERS.GLM ? GLM_MODEL : DEEPSEEK_MODEL;
+        var maxTokens = p === PROVIDERS.GLM ? GLM_MAX_TOKENS : DEEPSEEK_MAX_TOKENS;
+
+        storage.get({
+          key: keyStorage,
+          success: function(value) {
+            done({
+              key: value || defaultKey,
+              endpoint: endpoint,
+              model: model,
+              maxTokens: maxTokens
+            });
+          },
+          fail: function() {
+            done({
+              key: defaultKey,
+              endpoint: endpoint,
+              model: model,
+              maxTokens: maxTokens
+            });
+          }
+        });
+      }.bind(this),
       fail: function() {
-        done(DEEPSEEK_API_KEY);
-      }
+        storage.get({
+          key: STORAGE_KEYS.API_KEY,
+          success: function(value) {
+            done({
+              key: value || DEEPSEEK_API_KEY,
+              endpoint: DEEPSEEK_ENDPOINT,
+              model: DEEPSEEK_MODEL,
+              maxTokens: DEEPSEEK_MAX_TOKENS
+            });
+          },
+          fail: function() {
+            done({
+              key: DEEPSEEK_API_KEY,
+              endpoint: DEEPSEEK_ENDPOINT,
+              model: DEEPSEEK_MODEL,
+              maxTokens: DEEPSEEK_MAX_TOKENS
+            });
+          }
+        });
+      }.bind(this)
     });
   },
 

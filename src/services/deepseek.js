@@ -1,8 +1,8 @@
 import fetch from "@system.fetch"
 import {
-  DEEPSEEK_API_KEY,
   DEEPSEEK_ENDPOINT,
   DEEPSEEK_MODEL,
+  DEEPSEEK_MAX_TOKENS,
   REQUEST_TIMEOUT
 } from "../utils/constants"
 
@@ -11,14 +11,18 @@ function parseResponse(response) {
   var data = typeof raw === "string" ? JSON.parse(raw) : raw
   var choice = data && data.choices && data.choices[0]
   var message = choice && choice.message
-  return (message && message.content) || ""
+  var content = (message && message.content) || (message && message.reasoning_content) || ""
+  return content
 }
 
-export function sendChatMessage(messages, done, fail, apiKey) {
-  var key = apiKey || DEEPSEEK_API_KEY
+export function sendChatMessage(messages, done, fail, apiKey, endpoint, model, maxTokens) {
+  var key = apiKey
+  var url = endpoint || DEEPSEEK_ENDPOINT
+  var modelName = model || DEEPSEEK_MODEL
+  var maxTok = maxTokens || DEEPSEEK_MAX_TOKENS
 
   if (!key) {
-    fail(new Error("DeepSeek API Key is not configured"))
+    fail(new Error("API Key is not configured"))
     return
   }
 
@@ -33,16 +37,16 @@ export function sendChatMessage(messages, done, fail, apiKey) {
   }, REQUEST_TIMEOUT)
 
   fetch.fetch({
-    url: DEEPSEEK_ENDPOINT,
+    url: url,
     method: "POST",
     header: {
       Authorization: "Bearer " + key,
       "Content-Type": "application/json"
     },
     data: JSON.stringify({
-      model: DEEPSEEK_MODEL,
+      model: modelName,
       messages: messages,
-      max_tokens: 300
+      max_tokens: maxTok
     }),
     success: function(response) {
       if (finished) {

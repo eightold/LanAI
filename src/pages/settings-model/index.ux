@@ -1,0 +1,121 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <input class="back-button" type="button" value="<" onclick="back" />
+      <text class="title">模型选择</text>
+    </div>
+
+    <div class="menu-list">
+      <div class="menu-item" onclick="selectProvider('deepseek')">
+        <text class="menu-text">DeepSeek</text>
+        <text class="menu-check" if="{{ isDeepseek }}">✓</text>
+      </div>
+      <div class="menu-item" onclick="selectProvider('glm')">
+        <text class="menu-text">GLM</text>
+        <text class="menu-check" if="{{ isGlm }}">✓</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import {writeValue, readValue} from "../../services/storage"
+import {STORAGE_KEYS, PROVIDERS} from "../../utils/constants"
+
+export default {
+  private: {
+    isDeepseek: false,
+    isGlm: true
+  },
+
+  onShow() {
+    setTimeout(
+      function() {
+        this.loadProvider()
+      }.bind(this),
+      0
+    )
+  },
+
+  loadProvider() {
+    var self = this;
+    readValue(STORAGE_KEYS.MODEL_PROVIDER, function(value) {
+      var p = value || PROVIDERS.DEEPSEEK;
+      self.isDeepseek = p === PROVIDERS.DEEPSEEK;
+      self.isGlm = p === PROVIDERS.GLM;
+    });
+  },
+
+  selectProvider(provider) {
+    var self = this;
+    writeValue(STORAGE_KEYS.MODEL_PROVIDER, provider, function() {
+      self.isDeepseek = provider === PROVIDERS.DEEPSEEK;
+      self.isGlm = provider === PROVIDERS.GLM;
+    });
+  },
+
+  back() {
+    var router = require("@system.router")
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  padding: 24px 22px;
+  flex-direction: column;
+  background-color: #101418;
+}
+
+.header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.back-button {
+  width: 38px;
+  height: 34px;
+  border-radius: 16px;
+  background-color: #25313d;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.title {
+  flex: 1;
+  margin-left: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.menu-list {
+  flex-direction: column;
+}
+
+.menu-item {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background-color: #1f2933;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.menu-text {
+  flex: 1;
+  font-size: 16px;
+  color: #ffffff;
+}
+
+.menu-check {
+  font-size: 18px;
+  color: #1fbf75;
+}
+</style>

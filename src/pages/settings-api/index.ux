@@ -6,13 +6,19 @@
     </div>
 
     <div class="section">
-      <text class="label">API Key: {{ apiStatus }}</text>
-      <input class="key-input" type="text" placeholder="Enter API Key" value="{{ keyDraft }}" onchange="onKeyChange" />
-      <input class="key-save" type="button" value="Save" onclick="saveKey" />
+      <text class="label">DeepSeek API Key: {{ dsStatus }}</text>
+      <input class="key-input" type="text" placeholder="Enter DeepSeek Key" value="{{ dsDraft }}" onchange="onDsChange" />
     </div>
 
+    <div class="section">
+      <text class="label">GLM API Key: {{ glmStatus }}</text>
+      <input class="key-input" type="text" placeholder="Enter GLM Key" value="{{ glmDraft }}" onchange="onGlmChange" />
+    </div>
+
+    <input class="key-save" type="button" value="Save" onclick="saveKeys" />
+
     <div class="hint">
-      <text class="hint-text">API Key 用于调用 DeepSeek 服务，保存在本地</text>
+      <text class="hint-text">API Key 保存在本地，用于调用 AI 服务</text>
     </div>
   </div>
 </template>
@@ -21,12 +27,15 @@
 import {readValue, writeValue} from "../../services/storage"
 import {STORAGE_KEYS} from "../../utils/constants"
 
-var API_KEY = STORAGE_KEYS.API_KEY
+var DS_KEY = STORAGE_KEYS.API_KEY
+var GLM_KEY = STORAGE_KEYS.GLM_API_KEY
 
 export default {
   private: {
-    apiStatus: "Default",
-    keyDraft: ""
+    dsStatus: "Default",
+    glmStatus: "Default",
+    dsDraft: "",
+    glmDraft: ""
   },
 
   onShow() {
@@ -40,23 +49,37 @@ export default {
 
   loadKeyStatus() {
     var self = this;
-    readValue(API_KEY, function(value) {
-      self.apiStatus = value ? "Custom" : "Default";
+    readValue(DS_KEY, function(value) {
+      self.dsStatus = value ? "Custom" : "Default";
+    });
+    readValue(GLM_KEY, function(value) {
+      self.glmStatus = value ? "Custom" : "Default";
     });
   },
 
-  onKeyChange(evt) {
-    this.keyDraft = (evt && evt.value) || "";
+  onDsChange(evt) {
+    this.dsDraft = (evt && evt.value) || "";
   },
 
-  saveKey() {
-    var key = (this.keyDraft || "").trim();
+  onGlmChange(evt) {
+    this.glmDraft = (evt && evt.value) || "";
+  },
+
+  saveKeys() {
+    var dsKey = (this.dsDraft || "").trim();
+    var glmKey = (this.glmDraft || "").trim();
     var self = this;
     var prompt = require("@system.prompt")
-    writeValue(API_KEY, key, function() {
-      self.apiStatus = key ? "Custom" : "Default";
-      self.keyDraft = "";
-      prompt.showToast({ message: key ? "Key saved" : "Reset to default key" });
+
+    writeValue(DS_KEY, dsKey, function() {
+      self.dsStatus = dsKey ? "Custom" : "Default";
+      self.dsDraft = "";
+
+      writeValue(GLM_KEY, glmKey, function() {
+        self.glmStatus = glmKey ? "Custom" : "Default";
+        self.glmDraft = "";
+        prompt.showToast({ message: "Keys saved" });
+      });
     });
   },
 
@@ -102,6 +125,7 @@ export default {
 .section {
   width: 100%;
   flex-direction: column;
+  margin-bottom: 12px;
 }
 
 .label {
@@ -118,7 +142,6 @@ export default {
   background-color: #1f2933;
   color: #ffffff;
   font-size: 13px;
-  margin-bottom: 8px;
 }
 
 .key-save {

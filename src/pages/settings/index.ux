@@ -10,6 +10,10 @@
         <text class="menu-text">API</text>
         <text class="menu-arrow">></text>
       </div>
+      <div class="menu-item" onclick="openModelSettings">
+        <text class="menu-text">模型选择</text>
+        <text class="menu-arrow">></text>
+      </div>
       <div class="menu-item" onclick="openAbout">
         <text class="menu-text">关于</text>
         <text class="menu-arrow">></text>
@@ -24,6 +28,13 @@ export default {
     var router = require("@system.router")
     router.push({
       uri: "/pages/settings-api"
+    })
+  },
+
+  openModelSettings() {
+    var router = require("@system.router")
+    router.push({
+      uri: "/pages/settings-model"
     })
   },
 

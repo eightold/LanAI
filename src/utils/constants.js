@@ -3,12 +3,26 @@ export var APP_NAME = "LanAI"
 export var STORAGE_KEYS = {
   CHAT_LIST: "chat_list",
   CURRENT_CHAT_ID: "current_chat_id",
-  API_KEY: "settings_api_key"
+  API_KEY: "settings_api_key",
+  GLM_API_KEY: "settings_glm_api_key",
+  MODEL_PROVIDER: "settings_model_provider"
 }
 
 export var DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions"
 export var DEEPSEEK_MODEL = "deepseek-v4-flash"
-export var DEEPSEEK_API_KEY = ""
+export var DEEPSEEK_API_KEY = "sk-18560b9314b9476a9eb527da9558a716"
+
+export var GLM_ENDPOINT = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+export var GLM_MODEL = "glm-4.7"
+export var GLM_API_KEY = "f43f84a5c8274480bc80043cb373e5cc.CgVl0clgVlPNplJP"
+
+export var PROVIDERS = {
+  DEEPSEEK: "deepseek",
+  GLM: "glm"
+}
+
+export var DEEPSEEK_MAX_TOKENS = 300
+export var GLM_MAX_TOKENS = 1024
 
 export var MAX_MESSAGES = 50
 export var MAX_INPUT_LENGTH = 200

@@ -49,6 +49,9 @@
       },
       "pages/settings-about": {
         "component": "index"
+      },
+      "pages/settings-model": {
+        "component": "index"
       }
     }
   }
