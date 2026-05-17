@@ -24,8 +24,8 @@ import {STORAGE_KEYS, PROVIDERS} from "../../utils/constants"
 
 export default {
   private: {
-    isDeepseek: false,
-    isGlm: true
+    isDeepseek: true,
+    isGlm: false
   },
 
   onShow() {

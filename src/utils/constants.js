@@ -10,11 +10,11 @@ export var STORAGE_KEYS = {
 
 export var DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions"
 export var DEEPSEEK_MODEL = "deepseek-v4-flash"
-export var DEEPSEEK_API_KEY = ""
+export var DEEPSEEK_API_KEY = process.env.ENV_DEEPSEEK_API_KEY // 在quickapp.config.js 中做了.env加载
 
 export var GLM_ENDPOINT = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 export var GLM_MODEL = "glm-4.7"
-export var GLM_API_KEY = ""
+export var GLM_API_KEY = process.env.ENV_GLM_API_KEY
 
 export var PROVIDERS = {
   DEEPSEEK: "deepseek",

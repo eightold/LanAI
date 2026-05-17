@@ -6,3 +6,4 @@
 /build
 .husky/
 .claude/
+.env
