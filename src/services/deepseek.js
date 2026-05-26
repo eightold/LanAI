@@ -3,7 +3,8 @@ import {
   DEEPSEEK_ENDPOINT,
   DEEPSEEK_MODEL,
   DEEPSEEK_MAX_TOKENS,
-  REQUEST_TIMEOUT
+  REQUEST_TIMEOUT,
+  getSystemPrompt
 } from "../utils/constants"
 
 function parseResponse(response) {
@@ -26,6 +27,10 @@ export function sendChatMessage(messages, done, fail, apiKey, endpoint, model, m
     return
   }
 
+  // prompt 部分
+  var systemMsg = { role: "system", content: getSystemPrompt(maxTok) }
+  var messagesWithSystem = [systemMsg].concat(messages)
+
   var finished = false
   var timer = setTimeout(function() {
     if (finished) {
@@ -45,7 +50,7 @@ export function sendChatMessage(messages, done, fail, apiKey, endpoint, model, m
     },
     data: JSON.stringify({
       model: modelName,
-      messages: messages,
+      messages: messagesWithSystem,
       max_tokens: maxTok
     }),
     success: function(response) {

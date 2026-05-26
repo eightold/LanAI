@@ -34,3 +34,9 @@ export var REQUEST_STATE = {
   SUCCESS: "success",
   ERROR: "error"
 }
+
+export function getSystemPrompt(maxTokens) {
+  var charLimit = Math.floor(maxTokens / 1.5) // 计算最大可用字数
+  // prompt
+  return "你是 LanAI。你运行在 Xiaomi Watch S3 智能手表上，屏幕较小，请保持回复简洁清晰，控制在 " + charLimit + " 字以内。使用适合小屏幕阅读的简洁语言，语气亲切友好。"
+}
