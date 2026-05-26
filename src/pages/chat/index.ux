@@ -5,14 +5,13 @@
       <input class="back-button" type="button" value="<" onclick="back" />
       <text class="title">{{ title }}</text>
     </div>
-
-    <div class="messages" style="bottom: {{ msgBottom }}px;">
-      <scroll id="msgScroll" style="flex: 1; flex-direction: column;">
-        <div class="message-row" for="item in displayMessages">
-          <text class="bubble">{{ item.content }}</text>
-        </div>
-      </scroll>
-    </div>
+    
+    <!-- 一定要scroll-y -->
+    <scroll id="msgScroll" scroll-y="{{true}}" bounces="{{true}}" class="msg-scroll" style="height: {{ msgHeight }}px;">
+      <div class="message-row" for="item in displayMessages">
+        <text class="bubble">{{ item.content }}</text>
+      </div>
+    </scroll>
 
     <div class="input-area" style="bottom: {{ inputBottom }}px;">
       <div class="message-input" onclick="toggleKeyboard">
@@ -66,6 +65,7 @@ export default {
     keyboardHide: true,
     msgBottom: 72,
     inputBottom: 18,
+    msgHeight: 342,
     displayMessages: [
       {
         id: "welcome",
@@ -221,6 +221,7 @@ export default {
       this.msgBottom = 393;
       this.inputBottom = 339;
     }
+    this.msgHeight = 480 - 66 - this.msgBottom;
   },
 
   onInputComplete(evt) {
@@ -485,11 +486,11 @@ export default {
   lines: 1;
 }
 
-.messages {
+.msg-scroll {
   position: absolute;
   top: 66px;
   left: 18px;
-  right: 18px;
+  width: 444px;
   flex-direction: column;
 }
 

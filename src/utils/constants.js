@@ -21,7 +21,7 @@ export var PROVIDERS = {
   GLM: "glm"
 }
 
-export var DEEPSEEK_MAX_TOKENS = 300
+export var DEEPSEEK_MAX_TOKENS = 2048
 export var GLM_MAX_TOKENS = 1024
 
 export var MAX_MESSAGES = 50

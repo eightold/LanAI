@@ -11,7 +11,7 @@ function parseResponse(response) {
   var data = typeof raw === "string" ? JSON.parse(raw) : raw
   var choice = data && data.choices && data.choices[0]
   var message = choice && choice.message
-  var content = (message && message.content) || (message && message.reasoning_content) || ""
+  var content = (message && message.content) || ""
   return content
 }
 
