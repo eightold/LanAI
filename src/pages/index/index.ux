@@ -23,7 +23,8 @@ var CHAT_LIST_KEY = "chat_list"
 var CURRENT_CHAT_ID_KEY = "current_chat_id"
 
 function createId(prefix) {
-  return prefix + "_" + Date.now()
+  var random = Math.random().toString(36).slice(2, 8)
+  return prefix + "_" + Date.now() + "_" + random
 }
 
 export default {
@@ -43,10 +44,15 @@ export default {
   },
 
   getStorage() {
+    if (this._storage !== undefined) {
+      return this._storage
+    }
     try {
-      return require("@system.storage")
+      this._storage = require("@system.storage")
+      return this._storage
     } catch (error) {
       console.error("storage unavailable", error)
+      this._storage = null
       return null
     }
   },
@@ -59,6 +65,7 @@ export default {
       return
     }
 
+    var self = this
     storage.get({
       key: key,
       success: function(value) {
@@ -70,7 +77,10 @@ export default {
         try {
           done(JSON.parse(value))
         } catch (error) {
-          done(fallback)
+          console.error("storage parse error for key " + key, error)
+          self.writeJson(key, fallback, function() {
+            done(fallback)
+          })
         }
       },
       fail: function() {
@@ -201,14 +211,9 @@ export default {
   },
 
   removeChat(id) {
-    var nextList = []
-    var i = 0
-
-    for (i = 0; i < this.chats.length; i++) {
-      if (this.chats[i].id !== id) {
-        nextList.push(this.chats[i])
-      }
-    }
+    var nextList = this.chats.filter(function(item) {
+      return item.id !== id
+    })
 
     this.writeJson(
       CHAT_LIST_KEY,

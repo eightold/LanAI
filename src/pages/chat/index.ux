@@ -47,13 +47,9 @@ import {
   STORAGE_KEYS,
   PROVIDERS
 } from "../../utils/constants"
-
-var CHAT_LIST_KEY = "chat_list"
-var CURRENT_CHAT_ID_KEY = "current_chat_id"
-
-function getChatKey(id) {
-  return "chat_" + id
-}
+import { readValue } from "../../services/storage"
+import { saveFullChat, getChat, getCurrentChatId } from "../../services/chat"
+import { createId } from "../../utils/uuid"
 
 export default {
   private: {
@@ -61,6 +57,7 @@ export default {
     title: "Chat",
     draft: "",
     messages: [],
+    createTime: null,
     requestState: "idle",
     keyboardHide: true,
     msgBottom: 72,
@@ -81,75 +78,6 @@ export default {
       }.bind(this),
       0
     )
-  },
-
-  getStorage() {
-    try {
-      return require("@system.storage")
-    } catch (error) {
-      console.error("storage unavailable", error)
-      return null
-    }
-  },
-
-  readValue(key, done) {
-    var storage = this.getStorage()
-
-    if (!storage) {
-      done("")
-      return
-    }
-
-    storage.get({
-      key: key,
-      success: function(value) {
-        done(value || "")
-      },
-      fail: function() {
-        done("")
-      }
-    })
-  },
-
-  readJson(key, fallback, done) {
-    this.readValue(key, function(value) {
-      if (!value) {
-        done(fallback)
-        return
-      }
-
-      try {
-        done(JSON.parse(value))
-      } catch (error) {
-        done(fallback)
-      }
-    })
-  },
-
-  writeJson(key, value, done) {
-    var storage = this.getStorage()
-
-    if (!storage) {
-      if (done) {
-        done()
-      }
-      return
-    }
-
-    storage.set({
-      key: key,
-      value: JSON.stringify(value),
-      success: function() {
-        if (done) {
-          done()
-        }
-      },
-      fail: function() {
-        if (done) {
-          done()
-        }
-      }
-    })
   },
 
   normalizeMessages(messages) {
@@ -185,27 +113,18 @@ export default {
   },
 
   loadChat() {
-    this.readValue(
-      CURRENT_CHAT_ID_KEY,
-      function(chatId) {
-        var id = chatId || "local_chat"
-        this.chatId = id
-        this.readJson(
-          getChatKey(id),
-          {
-            id: id,
-            title: "Local Chat",
-            messages: []
-          },
-          function(chat) {
-            this.title = chat.title || "Chat"
-            this.messages = chat.messages || []
-            this.normalizeMessages(this.messages)
-            this.scrollToBottom()
-          }.bind(this)
-        )
-      }.bind(this)
-    )
+    getCurrentChatId(function(chatId) {
+      var id = chatId || "local_chat"
+      this.chatId = id
+      getChat(id, function(chat) {
+        var session = chat || { id: id, title: "Local Chat", messages: [] }
+        this.title = session.title || "Chat"
+        this.messages = session.messages || []
+        this.createTime = session.createTime || Date.now()
+        this.normalizeMessages(this.messages)
+        this.scrollToBottom()
+      }.bind(this))
+    }.bind(this))
   },
 
   toggleKeyboard() {
@@ -237,66 +156,6 @@ export default {
     this.draft = current.slice(0, -1);
   },
 
-  saveChat(done) {
-    var title = this.title
-
-    if (title === "Local Chat" && this.messages.length > 0) {
-      title = this.messages[0].content.slice(0, 16) || title
-    }
-
-    this.title = title
-    this.writeJson(
-      getChatKey(this.chatId),
-      {
-        id: this.chatId,
-        title: title,
-        messages: this.messages,
-        updateTime: Date.now()
-      },
-      function() {
-        this.syncChatList(title, done)
-      }.bind(this)
-    )
-  },
-
-  syncChatList(title, done) {
-    this.readJson(
-      CHAT_LIST_KEY,
-      [],
-      function(list) {
-        var nextList = []
-        var found = false
-        var i = 0
-        var preview = this.messages.length > 0 ? this.messages[this.messages.length - 1].content : "Local conversation"
-
-        for (i = 0; i < list.length; i++) {
-          if (list[i].id === this.chatId) {
-            nextList.push({
-              id: this.chatId,
-              title: title,
-              preview: preview,
-              updateTime: Date.now()
-            })
-            found = true
-          } else {
-            nextList.push(list[i])
-          }
-        }
-
-        if (!found) {
-          nextList.unshift({
-            id: this.chatId,
-            title: title,
-            preview: preview,
-            updateTime: Date.now()
-          })
-        }
-
-        this.writeJson(CHAT_LIST_KEY, nextList, done)
-      }.bind(this)
-    )
-  },
-
   send() {
     var content = (this.draft || "").trim();
     if (!content || this.requestState === "loading") {
@@ -308,54 +167,78 @@ export default {
     this.updateLayout();
 
     var loadingId = "loading_" + Date.now();
+    var userMsg = {
+      id: createId("msg"),
+      role: "user",
+      content: content,
+      timestamp: Date.now()
+    };
+
     this.messages = this.messages.concat([
-      { id: "user_" + Date.now(), role: "user", content: content },
+      userMsg,
       { id: loadingId, role: "assistant", content: "Thinking..." }
     ]);
     this.requestState = "loading";
 
+    // Set title from first message content
+    if (this.title === "Local Chat" && this.messages.length > 0) {
+      this.title = content.slice(0, 16) || this.title;
+    }
+
     this.normalizeMessages(this.messages);
     this.scrollToBottom();
-    this.saveChat(function() {});
 
-    var apiMessages = [];
-    for (var i = 0; i < this.messages.length; i++) {
-      if (this.messages[i].id !== loadingId) {
-        apiMessages.push({
-          role: this.messages[i].role,
-          content: this.messages[i].content
-        });
-      }
-    }
+    // Persist user message only — NEVER persist the loading placeholder
+    var messagesForSave = this.messages.filter(function(m) {
+      return m.id.indexOf("loading_") !== 0;
+    });
+    saveFullChat(this.chatId, this.title, this.createTime, messagesForSave, function() {});
+
+    // Build API messages excluding placeholder
+    var apiMessages = messagesForSave.map(function(m) {
+      return { role: m.role, content: m.content };
+    });
 
     var self = this;
     this.getApiConfig(function(config) {
       sendChatMessage(
         apiMessages,
         function(answer) {
-          self.replaceMessage(loadingId, {
-            id: "ai_" + Date.now(),
+          var aiMsg = {
+            id: createId("msg"),
             role: "assistant",
-            content: answer
-          });
+            content: answer,
+            timestamp: Date.now()
+          };
+          self.replaceMessage(loadingId, aiMsg);
           self.requestState = "idle";
           self.normalizeMessages(self.messages);
           self.scrollToBottom();
-          self.saveChat(function() {});
+
+          var finalMessages = self.messages.filter(function(m) {
+            return m.id.indexOf("loading_") !== 0;
+          });
+          saveFullChat(self.chatId, self.title, self.createTime, finalMessages, function() {});
         },
         function(error) {
           var msg = "Network error";
           if (error && error.message) {
             msg = error.message;
           }
-          self.replaceMessage(loadingId, {
-            id: "error_" + Date.now(),
+          var errMsg = {
+            id: createId("msg"),
             role: "assistant",
-            content: msg + ", please retry"
-          });
+            content: msg + ", please retry",
+            timestamp: Date.now()
+          };
+          self.replaceMessage(loadingId, errMsg);
           self.requestState = "idle";
           self.normalizeMessages(self.messages);
-          self.saveChat(function() {});
+
+          var finalMessages = self.messages.filter(function(m) {
+            return m.id.indexOf("loading_") !== 0;
+          });
+          saveFullChat(self.chatId, self.title, self.createTime, finalMessages, function() {});
         },
         config.key,
         config.endpoint,
@@ -366,82 +249,29 @@ export default {
   },
 
   getApiConfig(done) {
-    var storage = this.getStorage();
+    readValue(STORAGE_KEYS.MODEL_PROVIDER, function(provider) {
+      var p = provider || PROVIDERS.DEEPSEEK;
+      var keyStorage = p === PROVIDERS.GLM ? STORAGE_KEYS.GLM_API_KEY : STORAGE_KEYS.API_KEY;
+      var defaultKey = p === PROVIDERS.GLM ? GLM_API_KEY : DEEPSEEK_API_KEY;
+      var endpoint = p === PROVIDERS.GLM ? GLM_ENDPOINT : DEEPSEEK_ENDPOINT;
+      var model = p === PROVIDERS.GLM ? GLM_MODEL : DEEPSEEK_MODEL;
+      var maxTokens = p === PROVIDERS.GLM ? GLM_MAX_TOKENS : DEEPSEEK_MAX_TOKENS;
 
-    if (!storage) {
-      done({
-        key: DEEPSEEK_API_KEY,
-        endpoint: DEEPSEEK_ENDPOINT,
-        model: DEEPSEEK_MODEL,
-        maxTokens: DEEPSEEK_MAX_TOKENS
+      readValue(keyStorage, function(value) {
+        done({
+          key: value || defaultKey,
+          endpoint: endpoint,
+          model: model,
+          maxTokens: maxTokens
+        });
       });
-      return;
-    }
-
-    storage.get({
-      key: STORAGE_KEYS.MODEL_PROVIDER,
-      success: function(provider) {
-        var p = provider || PROVIDERS.DEEPSEEK;
-        var keyStorage = p === PROVIDERS.GLM ? STORAGE_KEYS.GLM_API_KEY : STORAGE_KEYS.API_KEY;
-        var defaultKey = p === PROVIDERS.GLM ? GLM_API_KEY : DEEPSEEK_API_KEY;
-        var endpoint = p === PROVIDERS.GLM ? GLM_ENDPOINT : DEEPSEEK_ENDPOINT;
-        var model = p === PROVIDERS.GLM ? GLM_MODEL : DEEPSEEK_MODEL;
-        var maxTokens = p === PROVIDERS.GLM ? GLM_MAX_TOKENS : DEEPSEEK_MAX_TOKENS;
-
-        storage.get({
-          key: keyStorage,
-          success: function(value) {
-            done({
-              key: value || defaultKey,
-              endpoint: endpoint,
-              model: model,
-              maxTokens: maxTokens
-            });
-          },
-          fail: function() {
-            done({
-              key: defaultKey,
-              endpoint: endpoint,
-              model: model,
-              maxTokens: maxTokens
-            });
-          }
-        });
-      }.bind(this),
-      fail: function() {
-        storage.get({
-          key: STORAGE_KEYS.API_KEY,
-          success: function(value) {
-            done({
-              key: value || DEEPSEEK_API_KEY,
-              endpoint: DEEPSEEK_ENDPOINT,
-              model: DEEPSEEK_MODEL,
-              maxTokens: DEEPSEEK_MAX_TOKENS
-            });
-          },
-          fail: function() {
-            done({
-              key: DEEPSEEK_API_KEY,
-              endpoint: DEEPSEEK_ENDPOINT,
-              model: DEEPSEEK_MODEL,
-              maxTokens: DEEPSEEK_MAX_TOKENS
-            });
-          }
-        });
-      }.bind(this)
     });
   },
 
   replaceMessage(oldId, newMsg) {
-    var arr = [];
-    for (var i = 0; i < this.messages.length; i++) {
-      if (this.messages[i].id === oldId) {
-        arr.push(newMsg);
-      } else {
-        arr.push(this.messages[i]);
-      }
-    }
-    this.messages = arr;
+    this.messages = this.messages.map(function(m) {
+      return m.id === oldId ? newMsg : m;
+    });
   },
 
   back() {
