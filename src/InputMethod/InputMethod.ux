@@ -290,12 +290,19 @@ import vibrator from "@system.vibrator";
 import device from '@system.device'
 import { SimpleInputMethod } from "./assets/dicUtil.js";
 function doSearchDic(word, cb) {
-  let hanzi = SimpleInputMethod.getHanzi(word);
+  var hanzi = SimpleInputMethod.getHanzi(word);
+  var result = [];
   if (hanzi && hanzi[0]) {
-    cb(hanzi[0]);
-  } else {
-    cb([]);
+    result = result.concat(hanzi[0]);
   }
+  // Multi-syllable word combination
+  if (word.length > 1) {
+    var combinedWords = SimpleInputMethod.getCombinedWords(word);
+    if (combinedWords.length > 0) {
+      result = combinedWords.concat(result);
+    }
+  }
+  cb(result);
 }
 function deleteLast(t) {
   if (t) {

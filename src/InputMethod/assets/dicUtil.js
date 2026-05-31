@@ -37,6 +37,51 @@ SimpleInputMethod.getHanzi = function(pinyin) {
     return [[], '']; // 理论上一般不会出现这种情况
 };
 
+// Forward Maximum Matching: segment pinyin string into valid syllables
+SimpleInputMethod.segmentPinyin = function(pinyin) {
+  var segments = [];
+  var pos = 0;
+  var len = pinyin.length;
+  while (pos < len) {
+    var maxSegLen = Math.min(6, len - pos);
+    var found = false;
+    for (var segLen = maxSegLen; segLen >= 1; segLen--) {
+      var sub = pinyin.substr(pos, segLen);
+      if (this.dict.py2hz[sub]) {
+        segments.push(sub);
+        pos += segLen;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return [];
+    }
+  }
+  return segments;
+};
+
+// Generate multi-character word candidates from pinyin
+SimpleInputMethod.getCombinedWords = function(pinyin) {
+  var segments = this.segmentPinyin(pinyin);
+  if (segments.length < 2) {
+    return [];
+  }
+  var result = [];
+  var word = '';
+  for (var i = 0; i < segments.length; i++) {
+    var chars = this.getSingleHanzi(segments[i]);
+    if (!chars) {
+      return [];
+    }
+    word += chars[0];
+  }
+  if (word) {
+    result.push(word);
+  }
+  return result;
+};
+
 SimpleInputMethod.initDict();
 
 export { SimpleInputMethod } //换成export default SimpleInputMethod;不能用
