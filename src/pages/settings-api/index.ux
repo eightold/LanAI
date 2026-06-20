@@ -1,3 +1,4 @@
+<import name="input-method" src="../../InputMethod/InputMethod.ux"></import>
 <template>
   <div class="page">
     <div class="header">
@@ -5,21 +6,56 @@
       <text class="title">API 设置</text>
     </div>
 
-    <div class="section">
-      <text class="label">DeepSeek API Key: {{ dsStatus }}</text>
-      <input class="key-input" type="text" placeholder="Enter DeepSeek Key" value="{{ dsDraft }}" onchange="onDsChange" />
+    <div class="form-area" if="{{ keyboardHide }}">
+      <div class="section">
+        <div class="label-row">
+          <text class="label">DeepSeek API Key: </text>
+          <text class="label-status label-custom" if="{{ dsStatus === 'Custom' }}" onclick="resetKey('ds')">Custom ↺</text>
+          <text class="label-status" if="{{ dsStatus === 'Default' }}">Default</text>
+        </div>
+        <div class="key-display" onclick="focusField('ds')">
+          <text class="key-text" if="{{ dsDraft }}">{{ dsDraft }}</text>
+          <text class="key-placeholder" if="{{ !dsDraft }}">Tap to enter DeepSeek Key</text>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="label-row">
+          <text class="label">GLM API Key: </text>
+          <text class="label-status label-custom" if="{{ glmStatus === 'Custom' }}" onclick="resetKey('glm')">Custom ↺</text>
+          <text class="label-status" if="{{ glmStatus === 'Default' }}">Default</text>
+        </div>
+        <div class="key-display" onclick="focusField('glm')">
+          <text class="key-text" if="{{ glmDraft }}">{{ glmDraft }}</text>
+          <text class="key-placeholder" if="{{ !glmDraft }}">Tap to enter GLM Key</text>
+        </div>
+      </div>
     </div>
 
-    <div class="section">
-      <text class="label">GLM API Key: {{ glmStatus }}</text>
-      <input class="key-input" type="text" placeholder="Enter GLM Key" value="{{ glmDraft }}" onchange="onGlmChange" />
+    <!-- 编辑栏：键盘弹出时显示当前输入内容 -->
+    <div class="edit-bar" if="{{ !keyboardHide }}" onclick="dismissKeyboard">
+      <text class="edit-label">{{ activeLabel }}</text>
+      <div class="edit-display">
+        <text class="edit-text" if="{{ activeDraft }}">{{ activeDraft }}</text>
+        <text class="edit-placeholder" if="{{ !activeDraft }}">Enter key...</text>
+      </div>
     </div>
 
-    <input class="key-save" type="button" value="Save" onclick="saveKeys" />
+    <input class="key-save" type="button" value="Save" onclick="saveKeys" if="{{ keyboardHide }}" />
 
-    <div class="hint">
+    <div class="hint" if="{{ keyboardHide }}">
       <text class="hint-text">API Key 保存在本地，用于调用 AI 服务</text>
     </div>
+
+    <input-method
+      hide="{{ keyboardHide }}"
+      keyboardtype="QWERTY"
+      maxlength="5"
+      vibratemode="short"
+      screentype="circle"
+      @complete="onInputComplete"
+      @delete="onInputDelete"
+    ></input-method>
   </div>
 </template>
 
@@ -35,7 +71,11 @@ export default {
     dsStatus: "Default",
     glmStatus: "Default",
     dsDraft: "",
-    glmDraft: ""
+    glmDraft: "",
+    keyboardHide: true,
+    activeField: "",
+    activeLabel: "",
+    activeDraft: ""
   },
 
   onShow() {
@@ -57,12 +97,69 @@ export default {
     });
   },
 
-  onDsChange(evt) {
-    this.dsDraft = (evt && evt.value) || "";
+  focusField(field) {
+    this.activeField = field;
+    if (field === "ds") {
+      this.activeDraft = this.dsDraft || "";
+      this.activeLabel = "DeepSeek Key";
+    } else if (field === "glm") {
+      this.activeDraft = this.glmDraft || "";
+      this.activeLabel = "GLM Key";
+    }
+    this.keyboardHide = false;
   },
 
-  onGlmChange(evt) {
-    this.glmDraft = (evt && evt.value) || "";
+  dismissKeyboard() {
+    // 收起键盘时把编辑内容同步回对应字段
+    if (this.activeField === "ds") {
+      this.dsDraft = this.activeDraft;
+    } else if (this.activeField === "glm") {
+      this.glmDraft = this.activeDraft;
+    }
+    this.keyboardHide = true;
+    this.activeField = "";
+  },
+
+  onInputComplete(evt) {
+    var ch = (evt && evt.detail && evt.detail.content) || "";
+    var current = this.activeDraft || "";
+    if (current.length < 200) {
+      this.activeDraft = current + ch;
+      // 同步更新对应字段，以便收起键盘后数据不丢失
+      if (this.activeField === "ds") {
+        this.dsDraft = this.activeDraft;
+      } else if (this.activeField === "glm") {
+        this.glmDraft = this.activeDraft;
+      }
+    }
+  },
+
+  onInputDelete() {
+    var current = this.activeDraft || "";
+    this.activeDraft = current.slice(0, -1);
+    // 同步更新对应字段
+    if (this.activeField === "ds") {
+      this.dsDraft = this.activeDraft;
+    } else if (this.activeField === "glm") {
+      this.glmDraft = this.activeDraft;
+    }
+  },
+
+  resetKey(provider) {
+    var keyToClear = provider === "ds" ? DS_KEY : GLM_KEY;
+    var self = this;
+    var prompt = require("@system.prompt")
+
+    writeValue(keyToClear, "", function() {
+      if (provider === "ds") {
+        self.dsStatus = "Default";
+        self.dsDraft = "";
+      } else {
+        self.glmStatus = "Default";
+        self.glmDraft = "";
+      }
+      prompt.showToast({ message: "Reset to default" });
+    });
   },
 
   saveKeys() {
@@ -84,6 +181,11 @@ export default {
   },
 
   back() {
+    // 如果键盘正在显示，先收起键盘
+    if (!this.keyboardHide) {
+      this.dismissKeyboard();
+      return;
+    }
     var router = require("@system.router")
     router.back()
   }
@@ -91,25 +193,28 @@ export default {
 </script>
 
 <style>
+/* 适配 480px 原型表盘与纯黑主题 */
 .page {
-  width: 100%;
-  height: 100%;
-  padding: 24px 22px;
-  flex-direction: column;
-  background-color: #101418;
+  width: 480px;
+  height: 480px;
+  background-color: #000000; /* 纯黑色 OLED 护眼省电 */
 }
 
 .header {
+  position: absolute;
+  top: 20px;
+  left: 60px;
+  width: 360px;
+  height: 38px;
   flex-direction: row;
   align-items: center;
-  margin-bottom: 16px;
 }
 
 .back-button {
   width: 38px;
   height: 34px;
-  border-radius: 16px;
-  background-color: #25313d;
+  border-radius: 20px;
+  background-color: #1a1a1a; /* 深灰色 */
   color: #ffffff;
   font-size: 18px;
 }
@@ -122,44 +227,121 @@ export default {
   color: #ffffff;
 }
 
+.form-area {
+  position: absolute;
+  top: 80px;
+  left: 60px;
+  width: 360px;
+  flex-direction: column;
+}
+
 .section {
   width: 100%;
   flex-direction: column;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
+}
+
+.label-row {
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .label {
   font-size: 14px;
-  color: #9aa5b1;
+  color: #888888; /* 弱化标签颜色 */
+}
+
+.label-status {
+  font-size: 14px;
+  color: #888888;
+}
+
+.label-custom {
+  color: #1fbf75; /* 绿色提示可点击重置 */
+  font-weight: bold;
+}
+
+.key-display {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 20px; /* 大圆角 */
+  background-color: #1a1a1a; /* 深灰色输入框 */
+  border: 2px solid #333333; /* 边框提示可点击 */
+  justify-content: center;
+}
+
+.key-text {
+  font-size: 14px;
+  color: #ffffff;
+  /* 长 key 自动换行 */
+}
+
+.key-placeholder {
+  font-size: 14px;
+  color: #888888; /* 弱化占位文字 */
+}
+
+/* 编辑栏：键盘弹出时显示在键盘上方 */
+.edit-bar {
+  position: absolute;
+  top: 75px;
+  left: 60px;
+  width: 360px;
+  flex-direction: column;
+}
+
+.edit-label {
+  font-size: 14px;
+  color: #888888;
   margin-bottom: 8px;
 }
 
-.key-input {
+.edit-display {
   width: 100%;
-  height: 40px;
-  padding: 0 10px;
-  border-radius: 12px;
-  background-color: #1f2933;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 20px;
+  background-color: #1a1a1a;
+  border: 2px solid #1fbf75; /* 绿色边框指示编辑状态 */
+  justify-content: center;
+}
+
+.edit-text {
+  font-size: 14px;
   color: #ffffff;
-  font-size: 13px;
+}
+
+.edit-placeholder {
+  font-size: 14px;
+  color: #888888;
 }
 
 .key-save {
-  width: 100%;
-  height: 44px;
-  border-radius: 14px;
-  background-color: #f4c542;
-  color: #1b1b12;
-  font-size: 16px;
+  position: absolute;
+  left: 140px;
+  top: 340px;
+  width: 200px;
+  height: 50px;
+  border-radius: 25px; /* 圆角药丸形按钮 */
+  background-color: #1fbf75; /* 绿色强调色 */
+  color: #000000; /* 黑色字体搭配绿色底色 */
+  font-size: 18px;
   font-weight: bold;
 }
 
 .hint {
-  margin-top: 12px;
+  position: absolute;
+  left: 60px;
+  top: 410px;
+  width: 360px;
 }
 
 .hint-text {
   font-size: 12px;
-  color: #6b7a8a;
+  color: #888888; /* 弱化提示文字 */
+  text-align: center;
 }
 </style>
