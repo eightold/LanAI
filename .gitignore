@@ -7,4 +7,5 @@
 .husky/
 .claude/
 .env
-*.md
+.md
+!README.md
